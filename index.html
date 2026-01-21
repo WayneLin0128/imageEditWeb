@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -10,25 +11,40 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
     <div class="container">
         <header class="header">
-            <h1 class="title">
-                <span class="icon">🎨</span>
-                圖片編輯器
-            </h1>
-            <p class="subtitle">專業的線上圖片編輯工具</p>
+            <div class="header-content">
+                <h1 class="title" data-i18n="title">
+                    <span class="icon">🎨</span>
+                    圖片編輯器
+                </h1>
+                <button class="language-switcher" id="languageSwitcher" title="Switch Language">
+                    <span class="lang-icon">🌐</span>
+                    <span class="lang-text" id="langText">EN</span>
+                </button>
+            </div>
+            <p class="subtitle" data-i18n="subtitle">專業的線上圖片編輯工具</p>
         </header>
 
         <main class="main-content">
             <!-- Canvas Area -->
             <div class="canvas-container" id="canvasContainer">
                 <canvas id="canvas"></canvas>
+                <div class="drag-overlay" id="dragOverlay">
+                    <div class="drag-content">
+                        <span class="drag-icon">📂</span>
+                        <p data-i18n="dropImageHere">拖放圖片到這裡</p>
+                    </div>
+                </div>
                 <div class="upload-prompt" id="uploadPrompt">
                     <div class="upload-icon">📸</div>
-                    <h2>上傳圖片開始編輯</h2>
-                    <p>支援 JPG、PNG、GIF 格式</p>
-                    <button class="btn btn-primary" onclick="document.getElementById('imageUpload').click()">
+                    <h2 data-i18n="uploadToStart">上傳圖片開始編輯</h2>
+                    <p data-i18n="supportedFormats">支援 JPG、PNG、GIF 格式</p>
+                    <p class="drag-hint" data-i18n="dragDropHint">或拖放圖片到此處</p>
+                    <button class="btn btn-primary" onclick="document.getElementById('imageUpload').click()"
+                        data-i18n="selectImage">
                         選擇圖片
                     </button>
                     <input type="file" id="imageUpload" accept="image/*" hidden>
@@ -191,23 +207,40 @@
 
                 <!-- Shape Controls -->
                 <div class="control-group" id="shapeControls" style="display: none;">
-                    <h3>形狀設定</h3>
+                    <h3 data-i18n="shapeSettings">形狀設定</h3>
                     <div class="control-item">
-                        <label for="shapeType">形狀類型</label>
+                        <label for="shapeType" data-i18n="shapeType">形狀類型</label>
                         <select id="shapeType" class="shape-select">
-                            <option value="rectangle">矩形</option>
-                            <option value="circle">圓形</option>
+                            <option value="rectangle" data-i18n="rectangle">矩形</option>
+                            <option value="circle" data-i18n="circle">圓形</option>
+                            <option value="line" data-i18n="line">線條</option>
+                            <option value="arrow" data-i18n="arrow">箭頭</option>
+                            <option value="polygon" data-i18n="polygon">多邊形</option>
+                        </select>
+                    </div>
+                    <div class="control-item" id="lineWidthControl">
+                        <label for="lineWidth" data-i18n="lineWidth">線條寬度</label>
+                        <input type="range" id="lineWidth" min="1" max="20" value="3" step="1">
+                        <span class="control-value" id="lineWidthValue">3</span>
+                    </div>
+                    <div class="control-item" id="arrowTypeControl" style="display: none;">
+                        <label for="arrowType" data-i18n="arrowType">箭頭類型</label>
+                        <select id="arrowType" class="shape-select">
+                            <option value="single" data-i18n="singleArrow">單向</option>
+                            <option value="double" data-i18n="doubleArrow">雙向</option>
                         </select>
                     </div>
                     <div class="control-item">
-                        <label for="shapeColor">顏色</label>
+                        <label for="shapeColor" data-i18n="color">顏色</label>
                         <input type="color" id="shapeColor" value="#00ff00">
                     </div>
-                    <div class="control-item">
-                        <label for="shapeFill">填充</label>
+                    <div class="control-item" id="shapeFillControl">
+                        <label for="shapeFill" data-i18n="fill">填充</label>
                         <input type="checkbox" id="shapeFill" checked>
                     </div>
-                    <button class="btn btn-primary" id="addShapeBtn">在畫布上拖曳繪製</button>
+                    <p class="info-text" id="shapeInstruction" data-i18n="shapeInstruction">在畫布上拖曳繪製</p>
+                    <p class="info-text" id="polygonInstruction" style="display: none;" data-i18n="polygonInstruction">
+                        點擊畫布添加頂點，雙擊或按 Enter 完成</p>
                 </div>
 
                 <!-- Resize Controls -->
@@ -248,4 +281,5 @@
 
     <script src="script.js"></script>
 </body>
+
 </html>
