@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="功能強大的線上圖片編輯器 - 支援裁切、濾鏡、繪圖、文字等多種編輯工具">
+    <title>圖片編輯器 - Image Editor</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1 class="title">
+                <span class="icon">🎨</span>
+                圖片編輯器
+            </h1>
+            <p class="subtitle">專業的線上圖片編輯工具</p>
+        </header>
+
+        <main class="main-content">
+            <!-- Canvas Area -->
+            <div class="canvas-container" id="canvasContainer">
+                <canvas id="canvas"></canvas>
+                <div class="upload-prompt" id="uploadPrompt">
+                    <div class="upload-icon">📸</div>
+                    <h2>上傳圖片開始編輯</h2>
+                    <p>支援 JPG、PNG、GIF 格式</p>
+                    <button class="btn btn-primary" onclick="document.getElementById('imageUpload').click()">
+                        選擇圖片
+                    </button>
+                    <input type="file" id="imageUpload" accept="image/*" hidden>
+                </div>
+            </div>
+
+            <!-- Toolbar -->
+            <div class="toolbar" id="toolbar">
+                <div class="toolbar-section">
+                    <h3>基本工具</h3>
+                    <div class="tool-group">
+                        <button class="tool-btn" id="uploadBtn" data-tool="upload" title="上傳圖片">
+                            <span class="tool-icon">📁</span>
+                            <span class="tool-label">上傳</span>
+                        </button>
+                        <button class="tool-btn" id="cropBtn" data-tool="crop" title="裁切">
+                            <span class="tool-icon">✂️</span>
+                            <span class="tool-label">裁切</span>
+                        </button>
+                        <button class="tool-btn" id="rotateBtn" data-tool="rotate" title="旋轉">
+                            <span class="tool-icon">🔄</span>
+                            <span class="tool-label">旋轉</span>
+                        </button>
+                        <button class="tool-btn" id="flipBtn" data-tool="flip" title="翻轉">
+                            <span class="tool-icon">🔃</span>
+                            <span class="tool-label">翻轉</span>
+                        </button>
+                        <button class="tool-btn" id="resizeBtn" data-tool="resize" title="調整大小">
+                            <span class="tool-icon">📏</span>
+                            <span class="tool-label">大小</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="toolbar-section">
+                    <h3>濾鏡與效果</h3>
+                    <div class="tool-group">
+                        <button class="tool-btn" id="filterBtn" data-tool="filter" title="濾鏡調整">
+                            <span class="tool-icon">🌈</span>
+                            <span class="tool-label">濾鏡</span>
+                        </button>
+                        <button class="tool-btn" id="presetBtn" data-tool="preset" title="預設濾鏡">
+                            <span class="tool-icon">✨</span>
+                            <span class="tool-label">預設</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="toolbar-section">
+                    <h3>繪圖工具</h3>
+                    <div class="tool-group">
+                        <button class="tool-btn" id="drawBtn" data-tool="draw" title="畫筆">
+                            <span class="tool-icon">✏️</span>
+                            <span class="tool-label">畫筆</span>
+                        </button>
+                        <button class="tool-btn" id="textBtn" data-tool="text" title="文字">
+                            <span class="tool-icon">📝</span>
+                            <span class="tool-label">文字</span>
+                        </button>
+                        <button class="tool-btn" id="shapeBtn" data-tool="shape" title="形狀">
+                            <span class="tool-icon">🔲</span>
+                            <span class="tool-label">形狀</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="toolbar-section">
+                    <h3>操作</h3>
+                    <div class="tool-group">
+                        <button class="tool-btn" id="undoBtn" title="撤銷 (Ctrl+Z)">
+                            <span class="tool-icon">↩️</span>
+                            <span class="tool-label">撤銷</span>
+                        </button>
+                        <button class="tool-btn" id="redoBtn" title="重做 (Ctrl+Y)">
+                            <span class="tool-icon">↪️</span>
+                            <span class="tool-label">重做</span>
+                        </button>
+                        <button class="tool-btn" id="resetBtn" title="重置">
+                            <span class="tool-icon">🔄</span>
+                            <span class="tool-label">重置</span>
+                        </button>
+                        <button class="tool-btn btn-download" id="downloadBtn" title="下載">
+                            <span class="tool-icon">💾</span>
+                            <span class="tool-label">下載</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Control Panel -->
+            <div class="control-panel" id="controlPanel" style="display: none;">
+                <!-- Filter Controls -->
+                <div class="control-group" id="filterControls" style="display: none;">
+                    <h3>濾鏡調整</h3>
+                    <div class="control-item">
+                        <label for="brightness">亮度</label>
+                        <input type="range" id="brightness" min="-100" max="100" value="0" step="1">
+                        <span class="control-value" id="brightnessValue">0</span>
+                    </div>
+                    <div class="control-item">
+                        <label for="contrast">對比度</label>
+                        <input type="range" id="contrast" min="-100" max="100" value="0" step="1">
+                        <span class="control-value" id="contrastValue">0</span>
+                    </div>
+                    <div class="control-item">
+                        <label for="saturation">飽和度</label>
+                        <input type="range" id="saturation" min="0" max="200" value="100" step="1">
+                        <span class="control-value" id="saturationValue">100</span>
+                    </div>
+                    <div class="control-item">
+                        <label for="hue">色相</label>
+                        <input type="range" id="hue" min="0" max="360" value="0" step="1">
+                        <span class="control-value" id="hueValue">0</span>
+                    </div>
+                </div>
+
+                <!-- Preset Filters -->
+                <div class="control-group" id="presetControls" style="display: none;">
+                    <h3>預設濾鏡</h3>
+                    <div class="preset-buttons">
+                        <button class="btn btn-preset" data-preset="grayscale">灰階</button>
+                        <button class="btn btn-preset" data-preset="vintage">復古</button>
+                        <button class="btn btn-preset" data-preset="vibrant">鮮豔</button>
+                        <button class="btn btn-preset" data-preset="invert">反轉</button>
+                    </div>
+                </div>
+
+                <!-- Draw Controls -->
+                <div class="control-group" id="drawControls" style="display: none;">
+                    <h3>畫筆設定</h3>
+                    <div class="control-item">
+                        <label for="brushSize">筆刷大小</label>
+                        <input type="range" id="brushSize" min="1" max="50" value="5" step="1">
+                        <span class="control-value" id="brushSizeValue">5</span>
+                    </div>
+                    <div class="control-item">
+                        <label for="brushColor">顏色</label>
+                        <input type="color" id="brushColor" value="#ff0000">
+                    </div>
+                </div>
+
+                <!-- Text Controls -->
+                <div class="control-group" id="textControls" style="display: none;">
+                    <h3>文字設定</h3>
+                    <div class="control-item">
+                        <label for="textInput">文字內容</label>
+                        <input type="text" id="textInput" placeholder="輸入文字..." class="text-input">
+                    </div>
+                    <div class="control-item">
+                        <label for="fontSize">字體大小</label>
+                        <input type="range" id="fontSize" min="10" max="100" value="30" step="1">
+                        <span class="control-value" id="fontSizeValue">30</span>
+                    </div>
+                    <div class="control-item">
+                        <label for="textColor">顏色</label>
+                        <input type="color" id="textColor" value="#ffffff">
+                    </div>
+                    <button class="btn btn-primary" id="addTextBtn">在畫布上點擊添加文字</button>
+                </div>
+
+                <!-- Shape Controls -->
+                <div class="control-group" id="shapeControls" style="display: none;">
+                    <h3>形狀設定</h3>
+                    <div class="control-item">
+                        <label for="shapeType">形狀類型</label>
+                        <select id="shapeType" class="shape-select">
+                            <option value="rectangle">矩形</option>
+                            <option value="circle">圓形</option>
+                        </select>
+                    </div>
+                    <div class="control-item">
+                        <label for="shapeColor">顏色</label>
+                        <input type="color" id="shapeColor" value="#00ff00">
+                    </div>
+                    <div class="control-item">
+                        <label for="shapeFill">填充</label>
+                        <input type="checkbox" id="shapeFill" checked>
+                    </div>
+                    <button class="btn btn-primary" id="addShapeBtn">在畫布上拖曳繪製</button>
+                </div>
+
+                <!-- Resize Controls -->
+                <div class="control-group" id="resizeControls" style="display: none;">
+                    <h3>調整大小</h3>
+                    <div class="control-item">
+                        <label for="resizeWidth">寬度 (px)</label>
+                        <input type="number" id="resizeWidth" min="1" value="800" class="text-input">
+                    </div>
+                    <div class="control-item">
+                        <label for="resizeHeight">高度 (px)</label>
+                        <input type="number" id="resizeHeight" min="1" value="600" class="text-input">
+                    </div>
+                    <div class="control-item">
+                        <label for="maintainAspect">保持比例</label>
+                        <input type="checkbox" id="maintainAspect" checked>
+                    </div>
+                    <button class="btn btn-primary" id="applyResizeBtn">套用</button>
+                </div>
+
+                <!-- Flip Controls -->
+                <div class="control-group" id="flipControls" style="display: none;">
+                    <h3>翻轉選項</h3>
+                    <div class="preset-buttons">
+                        <button class="btn btn-preset" id="flipHorizontalBtn">水平翻轉</button>
+                        <button class="btn btn-preset" id="flipVerticalBtn">垂直翻轉</button>
+                    </div>
+                </div>
+
+                <!-- Crop Info -->
+                <div class="control-group" id="cropControls" style="display: none;">
+                    <h3>裁切</h3>
+                    <p class="info-text">在畫布上拖曳選擇裁切區域，然後按Enter確認或Escape取消</p>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
