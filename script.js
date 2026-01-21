@@ -43,13 +43,46 @@ class ImageEditor {
         this.currentLanguage = localStorage.getItem('language') || 'zh';
         this.i18n = {
             zh: {
+                // Header
                 title: '圖片編輯器',
                 subtitle: '專業的線上圖片編輯工具',
+
+                // Upload section
                 uploadToStart: '上傳圖片開始編輯',
                 supportedFormats: '支援 JPG、PNG、GIF 格式',
                 dragDropHint: '或拖放圖片到此處',
                 selectImage: '選擇圖片',
                 dropImageHere: '拖放圖片到這裡',
+
+                // Toolbar sections
+                basicTools: '基本工具',
+                filtersEffects: '濾鏡與效果',
+                drawingTools: '繪圖工具',
+                operations: '操作',
+
+                // Basic tools
+                upload: '上傳',
+                crop: '裁切',
+                rotate: '旋轉',
+                flip: '翻轉',
+                resize: '大小',
+
+                // Filters
+                filter: '濾鏡',
+                preset: '預設',
+
+                // Drawing tools
+                brush: '畫筆',
+                text: '文字',
+                shape: '形狀',
+
+                // Operations
+                undo: '撤銷',
+                redo: '重做',
+                reset: '重置',
+                download: '下載',
+
+                // Shape settings
                 shapeSettings: '形狀設定',
                 shapeType: '形狀類型',
                 rectangle: '矩形',
@@ -64,16 +97,96 @@ class ImageEditor {
                 color: '顏色',
                 fill: '填充',
                 shapeInstruction: '在畫布上拖曳繪製',
-                polygonInstruction: '點擊畫布添加頂點，雙擊或按 Enter 完成'
+                polygonInstruction: '點擊畫布添加頂點，雙擊或按 Enter 完成',
+
+                // Filter controls
+                filterAdjustTitle: '濾鏡調整',
+                brightness: '亮度',
+                contrast: '對比度',
+                saturation: '飽和度',
+                hueLabel: '色相',
+
+                // Preset filters
+                presetFiltersTitle: '預設濾鏡',
+                grayscale: '灰階',
+                vintage: '復古',
+                vibrant: '鮮豔',
+                invert: '反轉',
+
+                // Draw controls
+                brushSettings: '畫筆設定',
+                brushSize: '筆刷大小',
+
+                // Text controls
+                textSettings: '文字設定',
+                textContent: '文字內容',
+                enterText: '輸入文字...',
+                textSize: '字體大小',
+                clickCanvasToAddText: '在畫布上點擊添加文字',
+
+                // Resize controls
+                resizeTitle: '調整大小',
+                widthPx: '寬度 (px)',
+                heightPx: '高度 (px)',
+                maintainRatio: '保持比例',
+                apply: '套用',
+
+                // Flip controls
+                flipOptions: '翻轉選項',
+                flipHorizontal: '水平翻轉',
+                flipVertical: '垂直翻轉',
+
+                // Crop controls
+                cropInstruction: '在畫布上拖曳選擇裁切區域，然後按Enter確認或Escape取消',
+
+                // Tooltips
+                uploadImage: '上傳圖片',
+                filterAdjust: '濾鏡調整',
+                presetFilters: '預設濾鏡',
+                undoShortcut: '撤銷 (Ctrl+Z)',
+                redoShortcut: '重做 (Ctrl+Y)'
             },
             en: {
+                // Header
                 title: 'Image Editor',
                 subtitle: 'Professional Online Image Editing Tool',
+
+                // Upload section
                 uploadToStart: 'Upload Image to Start',
                 supportedFormats: 'Supports JPG, PNG, GIF',
                 dragDropHint: 'Or drag and drop image here',
                 selectImage: 'Select Image',
                 dropImageHere: 'Drop Image Here',
+
+                // Toolbar sections
+                basicTools: 'Basic Tools',
+                filtersEffects: 'Filters & Effects',
+                drawingTools: 'Drawing Tools',
+                operations: 'Operations',
+
+                // Basic tools
+                upload: 'Upload',
+                crop: 'Crop',
+                rotate: 'Rotate',
+                flip: 'Flip',
+                resize: 'Resize',
+
+                // Filters
+                filter: 'Filter',
+                preset: 'Preset',
+
+                // Drawing tools
+                brush: 'Brush',
+                text: 'Text',
+                shape: 'Shape',
+
+                // Operations
+                undo: 'Undo',
+                redo: 'Redo',
+                reset: 'Reset',
+                download: 'Download',
+
+                // Shape settings
                 shapeSettings: 'Shape Settings',
                 shapeType: 'Shape Type',
                 rectangle: 'Rectangle',
@@ -88,7 +201,54 @@ class ImageEditor {
                 color: 'Color',
                 fill: 'Fill',
                 shapeInstruction: 'Drag on canvas to draw',
-                polygonInstruction: 'Click canvas to add points, double-click or press Enter to finish'
+                polygonInstruction: 'Click canvas to add points, double-click or press Enter to finish',
+
+                // Filter controls
+                filterAdjustTitle: 'Filter Adjustment',
+                brightness: 'Brightness',
+                contrast: 'Contrast',
+                saturation: 'Saturation',
+                hueLabel: 'Hue',
+
+                // Preset filters
+                presetFiltersTitle: 'Preset Filters',
+                grayscale: 'Grayscale',
+                vintage: 'Vintage',
+                vibrant: 'Vibrant',
+                invert: 'Invert',
+
+                // Draw controls
+                brushSettings: 'Brush Settings',
+                brushSize: 'Brush Size',
+
+                // Text controls
+                textSettings: 'Text Settings',
+                textContent: 'Text Content',
+                enterText: 'Enter text...',
+                textSize: 'Font Size',
+                clickCanvasToAddText: 'Click on canvas to add text',
+
+                // Resize controls
+                resizeTitle: 'Resize',
+                widthPx: 'Width (px)',
+                heightPx: 'Height (px)',
+                maintainRatio: 'Maintain Ratio',
+                apply: 'Apply',
+
+                // Flip controls
+                flipOptions: 'Flip Options',
+                flipHorizontal: 'Flip Horizontal',
+                flipVertical: 'Flip Vertical',
+
+                // Crop controls
+                cropInstruction: 'Drag on canvas to select crop area, then press Enter to confirm or Escape to cancel',
+
+                // Tooltips
+                uploadImage: 'Upload Image',
+                filterAdjust: 'Filter Adjustment',
+                presetFilters: 'Preset Filters',
+                undoShortcut: 'Undo (Ctrl+Z)',
+                redoShortcut: 'Redo (Ctrl+Y)'
             }
         };
 
@@ -126,6 +286,22 @@ class ImageEditor {
                 } else {
                     element.textContent = translations[key];
                 }
+            }
+        });
+
+        // Update elements with data-i18n-placeholder attribute
+        document.querySelectorAll('[data-i18n-placeholder]').forEach(element => {
+            const key = element.getAttribute('data-i18n-placeholder');
+            if (translations[key]) {
+                element.placeholder = translations[key];
+            }
+        });
+
+        // Update elements with data-i18n-title attribute
+        document.querySelectorAll('[data-i18n-title]').forEach(element => {
+            const key = element.getAttribute('data-i18n-title');
+            if (translations[key]) {
+                element.title = translations[key];
             }
         });
     }
