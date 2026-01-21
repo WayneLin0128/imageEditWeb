@@ -1,5 +1,7 @@
 # 🎨 圖片編輯器 Image Editor
 
+ [github page](https://waynelin0128.github.io/imageEditWeb/)
+ 
 一個功能豐富、設計精美的線上圖片編輯器，使用純 HTML、CSS 和 JavaScript 開發。
 
 ## ✨ 功能特色
