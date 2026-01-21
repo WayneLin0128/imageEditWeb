@@ -476,6 +476,8 @@ class ImageEditor {
         document.getElementById('resetBtn').addEventListener('click', () => this.reset());
         document.getElementById('downloadBtn').addEventListener('click', () => this.download());
         document.getElementById('rotateBtn').addEventListener('click', () => this.rotateImage());
+        document.getElementById('cropConfirmBtn').addEventListener('click', () => this.applyCrop());
+        document.getElementById('cropCancelBtn').addEventListener('click', () => this.cancelCrop());
 
         // Keyboard shortcuts
         document.addEventListener('keydown', (e) => {
@@ -563,11 +565,24 @@ class ImageEditor {
         // Handle crop tool
         if (tool === 'crop') {
             this.isCropping = true;
+            this.cropAction = null; // 'create', 'move', 'resize'
+            this.activeHandle = null; // 'nw', 'ne', 'sw', 'se', etc.
         } else {
             this.isCropping = false;
             this.cropStart = null;
             this.cropEnd = null;
+            this.canvas.style.cursor = 'default';
         }
+    }
+
+    getMousePos(e) {
+        const rect = this.canvas.getBoundingClientRect();
+        const scaleX = this.canvas.width / rect.width;
+        const scaleY = this.canvas.height / rect.height;
+        return {
+            x: (e.clientX - rect.left) * scaleX,
+            y: (e.clientY - rect.top) * scaleY
+        };
     }
 
     updateControlVisibility() {
@@ -605,16 +620,38 @@ class ImageEditor {
     handleMouseDown(e) {
         if (!this.currentImage) return;
 
-        const rect = this.canvas.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
+        const { x, y } = this.getMousePos(e);
 
         if (this.currentTool === 'draw') {
             this.isDrawing = true;
             this.ctx.beginPath();
             this.ctx.moveTo(x, y);
         } else if (this.currentTool === 'crop') {
-            this.cropStart = { x, y };
+            if (this.cropStart && this.cropEnd) {
+                // Check if clicking on handles or inside crop area
+                const handle = this.getHandleUnderCursor(x, y);
+                if (handle) {
+                    this.cropAction = 'resize';
+                    this.activeHandle = handle;
+                    this.dragStart = { x, y };
+                    this.initialCropStart = { ...this.cropStart };
+                    this.initialCropEnd = { ...this.cropEnd };
+                } else if (this.isPointInRect(x, y, this.cropStart, this.cropEnd)) {
+                    this.cropAction = 'move';
+                    this.dragStart = { x, y };
+                    this.initialCropStart = { ...this.cropStart };
+                    this.initialCropEnd = { ...this.cropEnd };
+                } else {
+                    // Start new crop
+                    this.cropStart = { x, y };
+                    this.cropEnd = { x, y }; // Initialize end point to start point
+                    this.cropAction = 'create';
+                }
+            } else {
+                this.cropStart = { x, y };
+                this.cropEnd = { x, y };
+                this.cropAction = 'create';
+            }
         } else if (this.currentTool === 'shape' && this.shapeType !== 'polygon') {
             this.shapeStart = { x, y };
             this.isDrawing = true;
@@ -624,9 +661,7 @@ class ImageEditor {
     handleMouseMove(e) {
         if (!this.currentImage) return;
 
-        const rect = this.canvas.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
+        const { x, y } = this.getMousePos(e);
 
         if (this.isDrawing && this.currentTool === 'draw') {
             this.ctx.strokeStyle = this.brushColor;
@@ -634,9 +669,44 @@ class ImageEditor {
             this.ctx.lineCap = 'round';
             this.ctx.lineTo(x, y);
             this.ctx.stroke();
-        } else if (this.cropStart && this.currentTool === 'crop') {
-            this.cropEnd = { x, y };
-            this.drawCropOverlay();
+        } else if (this.currentTool === 'crop') {
+            // Update cursor style
+            const handle = this.getHandleUnderCursor(x, y);
+            if (handle) {
+                this.canvas.style.cursor = `${handle}-resize`;
+            } else if (this.cropStart && this.cropEnd && this.isPointInRect(x, y, this.cropStart, this.cropEnd)) {
+                this.canvas.style.cursor = 'move';
+            } else {
+                this.canvas.style.cursor = 'crosshair';
+            }
+
+            if (this.cropAction === 'create') {
+                this.cropEnd = { x, y };
+                this.drawCropOverlay();
+            } else if (this.cropAction === 'move') {
+                const dx = x - this.dragStart.x;
+                const dy = y - this.dragStart.y;
+
+                const width = this.initialCropEnd.x - this.initialCropStart.x;
+                const height = this.initialCropEnd.y - this.initialCropStart.y;
+
+                let newX = this.initialCropStart.x + dx;
+                let newY = this.initialCropStart.y + dy;
+
+                // Boundary checks
+                if (newX < 0) newX = 0;
+                if (newY < 0) newY = 0;
+                if (newX + width > this.canvas.width) newX = this.canvas.width - width;
+                if (newY + height > this.canvas.height) newY = this.canvas.height - height;
+
+                this.cropStart = { x: newX, y: newY };
+                this.cropEnd = { x: newX + width, y: newY + height };
+                this.drawCropOverlay();
+            } else if (this.cropAction === 'resize') {
+                this.handleResize(x, y);
+                this.drawCropOverlay();
+            }
+            // If just hovering (no action), cursor is updated above
         } else if (this.isDrawing && this.currentTool === 'shape' && this.shapeStart) {
             this.drawShapePreview(x, y);
         } else if (this.isDrawingPolygon && this.polygonPoints.length > 0) {
@@ -650,20 +720,30 @@ class ImageEditor {
         if (this.isDrawing && this.currentTool === 'draw') {
             this.isDrawing = false;
             this.saveState();
+        } else if (this.isCropping && this.cropAction) {
+            this.cropAction = null;
+            this.activeHandle = null;
+
+            // Normalize coordinates (ensure start is top-left, end is bottom-right)
+            if (this.cropStart && this.cropEnd) {
+                const x1 = Math.min(this.cropStart.x, this.cropEnd.x);
+                const y1 = Math.min(this.cropStart.y, this.cropEnd.y);
+                const x2 = Math.max(this.cropStart.x, this.cropEnd.x);
+                const y2 = Math.max(this.cropStart.y, this.cropEnd.y);
+                this.cropStart = { x: x1, y: y1 };
+                this.cropEnd = { x: x2, y: y2 };
+                this.drawCropOverlay();
+            }
         } else if (this.isDrawing && this.currentTool === 'shape' && this.shapeType !== 'polygon') {
             this.isDrawing = false;
-            const rect = this.canvas.getBoundingClientRect();
-            const x = e.clientX - rect.left;
-            const y = e.clientY - rect.top;
+            const { x, y } = this.getMousePos(e);
             this.drawShape(x, y);
             this.saveState();
         }
     }
 
     handleCanvasClick(e) {
-        const rect = this.canvas.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
+        const { x, y } = this.getMousePos(e);
 
         if (this.currentTool === 'text') {
             const text = document.getElementById('textInput').value;
@@ -770,32 +850,154 @@ class ImageEditor {
     drawCropOverlay() {
         if (!this.cropStart || !this.cropEnd) return;
 
-        // Redraw image
-        this.ctx.putImageData(this.getCanvasState(), 0, 0);
+        // Clean canvas first
+        this.redrawCanvas();
 
-        // Draw overlay
+        const x = Math.min(this.cropStart.x, this.cropEnd.x);
+        const y = Math.min(this.cropStart.y, this.cropEnd.y);
+        const width = Math.abs(this.cropEnd.x - this.cropStart.x);
+        const height = Math.abs(this.cropEnd.y - this.cropStart.y);
+        const canvasWidth = this.canvas.width;
+        const canvasHeight = this.canvas.height;
+
         this.ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
-        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
-        // Clear crop area
-        const width = this.cropEnd.x - this.cropStart.x;
-        const height = this.cropEnd.y - this.cropStart.y;
-        this.ctx.clearRect(this.cropStart.x, this.cropStart.y, width, height);
+        // Draw 4 rectangles around the crop area
+        // Top
+        this.ctx.fillRect(0, 0, canvasWidth, y);
+        // Bottom
+        this.ctx.fillRect(0, y + height, canvasWidth, canvasHeight - (y + height));
+        // Left
+        this.ctx.fillRect(0, y, x, height);
+        // Right
+        this.ctx.fillRect(x + width, y, canvasWidth - (x + width), height);
 
-        // Redraw image in crop area
-        this.ctx.drawImage(this.canvas,
-            this.cropStart.x, this.cropStart.y, width, height,
-            this.cropStart.x, this.cropStart.y, width, height
-        );
 
         // Draw border
-        this.ctx.strokeStyle = '#667eea';
-        this.ctx.lineWidth = 2;
-        this.ctx.strokeRect(this.cropStart.x, this.cropStart.y, width, height);
+        this.ctx.strokeStyle = '#fff';
+        this.ctx.lineWidth = 1;
+        this.ctx.setLineDash([5, 5]);
+        this.ctx.strokeRect(x, y, width, height);
+        this.ctx.setLineDash([]);
+
+        // Draw Grid (Rule of Thirds)
+        this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+        this.ctx.lineWidth = 1;
+        this.ctx.beginPath();
+        // Vertical lines
+        this.ctx.moveTo(x + width / 3, y);
+        this.ctx.lineTo(x + width / 3, y + height);
+        this.ctx.moveTo(x + 2 * width / 3, y);
+        this.ctx.lineTo(x + 2 * width / 3, y + height);
+        // Horizontal lines
+        this.ctx.moveTo(x, y + height / 3);
+        this.ctx.lineTo(x + width, y + height / 3);
+        this.ctx.moveTo(x, y + 2 * height / 3);
+        this.ctx.lineTo(x + width, y + 2 * height / 3);
+        this.ctx.stroke();
+
+        // Draw handles
+        const handleSize = 10;
+        this.ctx.fillStyle = '#fff';
+
+        // Corners
+        this.ctx.fillRect(x - handleSize / 2, y - handleSize / 2, handleSize, handleSize); // NW
+        this.ctx.fillRect(x + width - handleSize / 2, y - handleSize / 2, handleSize, handleSize); // NE
+        this.ctx.fillRect(x - handleSize / 2, y + height - handleSize / 2, handleSize, handleSize); // SW
+        this.ctx.fillRect(x + width - handleSize / 2, y + height - handleSize / 2, handleSize, handleSize); // SE
+
+        // Sides (optional, but good for UX)
+        this.ctx.fillRect(x + width / 2 - handleSize / 2, y - handleSize / 2, handleSize, handleSize); // N
+        this.ctx.fillRect(x + width / 2 - handleSize / 2, y + height - handleSize / 2, handleSize, handleSize); // S
+        this.ctx.fillRect(x - handleSize / 2, y + height / 2 - handleSize / 2, handleSize, handleSize); // W
+        this.ctx.fillRect(x + width - handleSize / 2, y + height / 2 - handleSize / 2, handleSize, handleSize); // E
+    }
+
+    isPointInRect(x, y, p1, p2) {
+        const x1 = Math.min(p1.x, p2.x);
+        const y1 = Math.min(p1.y, p2.y);
+        const x2 = Math.max(p1.x, p2.x);
+        const y2 = Math.max(p1.y, p2.y);
+        return x >= x1 && x <= x2 && y >= y1 && y <= y2;
+    }
+
+    getHandleUnderCursor(px, py) {
+        if (!this.cropStart || !this.cropEnd) return null;
+
+        const x = Math.min(this.cropStart.x, this.cropEnd.x);
+        const y = Math.min(this.cropStart.y, this.cropEnd.y);
+        const width = Math.abs(this.cropEnd.x - this.cropStart.x);
+        const height = Math.abs(this.cropEnd.y - this.cropStart.y);
+        const handleSize = 10;
+        const tolerance = handleSize; // slightly larger hit area
+
+        const handles = {
+            'nw': { x: x, y: y },
+            'ne': { x: x + width, y: y },
+            'sw': { x: x, y: y + height },
+            'se': { x: x + width, y: y + height },
+            'n': { x: x + width / 2, y: y },
+            's': { x: x + width / 2, y: y + height },
+            'w': { x: x, y: y + height / 2 },
+            'e': { x: x + width, y: y + height / 2 }
+        };
+
+        for (const [key, pos] of Object.entries(handles)) {
+            if (Math.abs(px - pos.x) <= tolerance && Math.abs(py - pos.y) <= tolerance) {
+                return key;
+            }
+        }
+        return null;
+    }
+
+    handleResize(x, y) {
+        // Based on activeHandle, update cropStart or cropEnd
+        // This is complex because we need to respect the fixed anchor point depending on handle
+
+        const currentRect = {
+            x: Math.min(this.initialCropStart.x, this.initialCropEnd.x),
+            y: Math.min(this.initialCropStart.y, this.initialCropEnd.y),
+            w: Math.abs(this.initialCropEnd.x - this.initialCropStart.x),
+            h: Math.abs(this.initialCropEnd.y - this.initialCropStart.y)
+        };
+
+        // Calculate new bounds
+        let newX = currentRect.x;
+        let newY = currentRect.y;
+        let newW = currentRect.w;
+        let newH = currentRect.h;
+
+        if (this.activeHandle.includes('w')) {
+            const diff = x - currentRect.x;
+            newX = x;
+            newW = currentRect.w - diff;
+        }
+        if (this.activeHandle.includes('e')) {
+            newW = x - currentRect.x;
+        }
+        if (this.activeHandle.includes('n')) {
+            const diff = y - currentRect.y;
+            newY = y;
+            newH = currentRect.h - diff;
+        }
+        if (this.activeHandle.includes('s')) {
+            newH = y - currentRect.y;
+        }
+
+        // Apply constraints (min size, bounds)
+        if (newW < 10) newW = 10;
+        if (newH < 10) newH = 10;
+
+        // Update cropStart/End
+        this.cropStart = { x: newX, y: newY };
+        this.cropEnd = { x: newX + newW, y: newY + newH };
     }
 
     applyCrop() {
         if (!this.cropStart || !this.cropEnd) return;
+
+        // Clean canvas (remove overlay/grid) before capturing
+        this.redrawCanvas();
 
         const width = Math.abs(this.cropEnd.x - this.cropStart.x);
         const height = Math.abs(this.cropEnd.y - this.cropStart.y);
@@ -811,8 +1013,10 @@ class ImageEditor {
         this.cropStart = null;
         this.cropEnd = null;
         this.isCropping = false;
+        this.cropAction = null;
         this.currentTool = null;
         this.updateControlVisibility();
+        this.canvas.style.cursor = 'default';
         this.saveState();
     }
 
@@ -820,7 +1024,13 @@ class ImageEditor {
         this.cropStart = null;
         this.cropEnd = null;
         this.isCropping = false;
+        this.cropAction = null;
         this.redrawCanvas();
+        this.canvas.style.cursor = 'default';
+        // Keep tool selected or deselect? Usually reset logic handles this, staying in crop tool but resetting selection is better UX.
+        // But requested UX was to cancel.
+        this.currentTool = null;
+        this.updateControlVisibility();
     }
 
     drawShapePreview(x, y) {
@@ -1205,4 +1415,4 @@ class ImageEditor {
 }
 
 // Initialize the app
-const editor = new ImageEditor();
+window.editor = new ImageEditor();
