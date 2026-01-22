@@ -13,7 +13,10 @@ class ImageEditor {
         this.isDrawing = false;
         this.cropStart = null;
         this.cropEnd = null;
+        this.cropStart = null;
+        this.cropEnd = null;
         this.isCropping = false;
+        this.originalResizeCanvas = null;
 
         // Drawing settings
         this.brushSize = 5;
@@ -349,6 +352,13 @@ class ImageEditor {
                 this.originalImage = img;
                 this.currentImage = img;
                 this.displayImage(img);
+
+                // Reset resize session when loading new image
+                this.endResizeSession();
+                if (this.currentTool === 'resize') {
+                    this.startResizeSession();
+                }
+
                 this.saveState();
                 document.getElementById('uploadPrompt').style.display = 'none';
                 this.canvas.classList.add('active');
@@ -543,7 +553,7 @@ class ImageEditor {
     }
 
     setTool(tool) {
-        // Remove active class from all tool buttons
+        // Remove active active class from all tool buttons
         document.querySelectorAll('.tool-btn[data-tool]').forEach(btn => {
             btn.classList.remove('active');
         });
@@ -552,6 +562,13 @@ class ImageEditor {
         const selectedBtn = document.querySelector(`[data-tool="${tool}"]`);
         if (selectedBtn) {
             selectedBtn.classList.add('active');
+        }
+
+        // Initialize resize session - Check BEFORE updating currentTool
+        if (tool === 'resize' && this.currentTool !== 'resize') {
+            this.startResizeSession();
+        } else if (tool !== 'resize') {
+            this.endResizeSession();
         }
 
         this.currentTool = tool;
@@ -573,6 +590,21 @@ class ImageEditor {
             this.cropEnd = null;
             this.canvas.style.cursor = 'default';
         }
+    }
+
+    startResizeSession() {
+        if (!this.currentImage) return;
+
+        // Cache current canvas state
+        this.originalResizeCanvas = document.createElement('canvas');
+        this.originalResizeCanvas.width = this.canvas.width;
+        this.originalResizeCanvas.height = this.canvas.height;
+        const ctx = this.originalResizeCanvas.getContext('2d');
+        ctx.drawImage(this.canvas, 0, 0);
+    }
+
+    endResizeSession() {
+        this.originalResizeCanvas = null;
     }
 
     getMousePos(e) {
@@ -1266,7 +1298,9 @@ class ImageEditor {
         tempCanvas.height = newHeight;
         const tempCtx = tempCanvas.getContext('2d');
 
-        tempCtx.drawImage(this.canvas, 0, 0, newWidth, newHeight);
+        // Use original cached canvas if in a resize session, otherwise use current canvas
+        const sourceCanvas = this.originalResizeCanvas || this.canvas;
+        tempCtx.drawImage(sourceCanvas, 0, 0, newWidth, newHeight);
 
         this.canvas.width = newWidth;
         this.canvas.height = newHeight;
