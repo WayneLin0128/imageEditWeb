@@ -255,6 +255,10 @@ class ImageEditor {
             }
         };
 
+        // Bind window event listeners for smooth dragging outside canvas
+        this.boundWindowMouseMove = this.handleMouseMove.bind(this);
+        this.boundWindowMouseUp = this.handleMouseUp.bind(this);
+
         this.init();
     }
 
@@ -681,8 +685,13 @@ class ImageEditor {
                 }
             } else {
                 this.cropStart = { x, y };
-                this.cropEnd = { x, y };
                 this.cropAction = 'create';
+            }
+
+            // Add window listeners if we started an action
+            if (this.cropAction) {
+                window.addEventListener('mousemove', this.boundWindowMouseMove);
+                window.addEventListener('mouseup', this.boundWindowMouseUp);
             }
         } else if (this.currentTool === 'shape' && this.shapeType !== 'polygon') {
             this.shapeStart = { x, y };
@@ -693,7 +702,13 @@ class ImageEditor {
     handleMouseMove(e) {
         if (!this.currentImage) return;
 
-        const { x, y } = this.getMousePos(e);
+        let { x, y } = this.getMousePos(e);
+
+        // Clamp coordinates to canvas bounds if cropping
+        if (this.currentTool === 'crop' && this.cropAction) {
+            x = Math.max(0, Math.min(x, this.canvas.width));
+            y = Math.max(0, Math.min(y, this.canvas.height));
+        }
 
         if (this.isDrawing && this.currentTool === 'draw') {
             this.ctx.strokeStyle = this.brushColor;
@@ -755,6 +770,10 @@ class ImageEditor {
         } else if (this.isCropping && this.cropAction) {
             this.cropAction = null;
             this.activeHandle = null;
+
+            // Remove window listeners
+            window.removeEventListener('mousemove', this.boundWindowMouseMove);
+            window.removeEventListener('mouseup', this.boundWindowMouseUp);
 
             // Normalize coordinates (ensure start is top-left, end is bottom-right)
             if (this.cropStart && this.cropEnd) {
@@ -929,7 +948,10 @@ class ImageEditor {
         this.ctx.stroke();
 
         // Draw handles
-        const handleSize = 10;
+        const rect = this.canvas.getBoundingClientRect();
+        const scaleX = this.canvas.width / rect.width;
+        const handleSize = 10 * scaleX;
+
         this.ctx.fillStyle = '#fff';
 
         // Corners
@@ -960,7 +982,10 @@ class ImageEditor {
         const y = Math.min(this.cropStart.y, this.cropEnd.y);
         const width = Math.abs(this.cropEnd.x - this.cropStart.x);
         const height = Math.abs(this.cropEnd.y - this.cropStart.y);
-        const handleSize = 10;
+
+        const rect = this.canvas.getBoundingClientRect();
+        const scaleX = this.canvas.width / rect.width;
+        const handleSize = 10 * scaleX;
         const tolerance = handleSize; // slightly larger hit area
 
         const handles = {
