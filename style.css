@@ -179,6 +179,7 @@ body::before {
     box-shadow: var(--shadow-lg);
     min-height: 600px;
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
     position: relative;
@@ -647,6 +648,30 @@ input[type="checkbox"] {
         opacity: 1;
         transform: translateY(0);
     }
+}
+
+/* Resolution Display */
+.resolution-display {
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(4px);
+    color: white;
+    padding: 6px 16px;
+    border-radius: 20px;
+    margin-bottom: var(--spacing-md);
+    font-size: 0.9rem;
+    font-weight: 500;
+    pointer-events: none;
+    z-index: 5;
+    display: none;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    font-family: 'Inter', sans-serif;
+    letter-spacing: 0.5px;
+}
+
+.resolution-display.visible {
+    display: block;
+    animation: fadeInDown 0.3s ease;
 }
 
 /* Responsive Design */

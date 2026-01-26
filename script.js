@@ -5,6 +5,7 @@ class ImageEditor {
         this.ctx = this.canvas.getContext('2d');
         this.canvasContainer = document.getElementById('canvasContainer');
         this.dragOverlay = document.getElementById('dragOverlay');
+        this.resolutionDisplay = document.getElementById('resolutionDisplay');
         this.originalImage = null;
         this.currentImage = null;
         this.history = [];
@@ -549,11 +550,21 @@ class ImageEditor {
         this.loadImageFromFile(file);
     }
 
+    updateResolutionDisplay() {
+        if (this.currentImage) {
+            this.resolutionDisplay.textContent = `${this.canvas.width} x ${this.canvas.height} px`;
+            this.resolutionDisplay.classList.add('visible');
+        } else {
+            this.resolutionDisplay.classList.remove('visible');
+        }
+    }
+
     displayImage(img) {
         this.canvas.width = img.width;
         this.canvas.height = img.height;
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
         this.ctx.drawImage(img, 0, 0);
+        this.updateResolutionDisplay();
     }
 
     setTool(tool) {
@@ -1074,6 +1085,7 @@ class ImageEditor {
         this.currentTool = null;
         this.updateControlVisibility();
         this.canvas.style.cursor = 'default';
+        this.updateResolutionDisplay();
         this.saveState();
     }
 
@@ -1285,7 +1297,9 @@ class ImageEditor {
         this.canvas.height = tempCanvas.height;
         this.ctx.drawImage(tempCanvas, 0, 0);
 
+        this.updateResolutionDisplay();
         this.saveState();
+
     }
 
     flipImage(direction) {
@@ -1331,6 +1345,7 @@ class ImageEditor {
         this.canvas.height = newHeight;
         this.ctx.drawImage(tempCanvas, 0, 0);
 
+        this.updateResolutionDisplay();
         this.saveState();
     }
 
@@ -1399,6 +1414,7 @@ class ImageEditor {
             this.canvas.width = state.width;
             this.canvas.height = state.height;
             this.ctx.putImageData(state.data, 0, 0);
+            this.updateResolutionDisplay();
         }
     }
 
