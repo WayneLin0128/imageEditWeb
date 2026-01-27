@@ -19,6 +19,14 @@ class ImageEditor {
         this.isCropping = false;
         this.originalResizeCanvas = null;
 
+        // Layered Rendering State
+        this.baseCanvas = document.createElement('canvas');
+        this.baseCtx = this.baseCanvas.getContext('2d');
+        this.shapes = []; // Array of shape objects
+        this.selectedShape = null;
+        this.activeHandle = null; // For resizing shapes
+
+
         // Drawing settings
         this.brushSize = 5;
         this.brushColor = '#ff0000';
@@ -356,6 +364,8 @@ class ImageEditor {
             img.onload = () => {
                 this.originalImage = img;
                 this.currentImage = img;
+                this.shapes = []; // Clear shapes for new image
+                this.selectedShape = null;
                 this.displayImage(img);
 
                 // Reset resize session when loading new image
@@ -562,9 +572,32 @@ class ImageEditor {
     displayImage(img) {
         this.canvas.width = img.width;
         this.canvas.height = img.height;
-        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-        this.ctx.drawImage(img, 0, 0);
+
+        // Initialize base canvas
+        this.baseCanvas.width = img.width;
+        this.baseCanvas.height = img.height;
+        this.baseCtx.drawImage(img, 0, 0);
+
+        this.render();
         this.updateResolutionDisplay();
+    }
+
+    render() {
+        // Clear display canvas
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+
+        // 1. Draw Base Layer (Image + burned changes)
+        this.ctx.drawImage(this.baseCanvas, 0, 0);
+
+        // 2. Draw Shapes
+        this.shapes.forEach(shape => {
+            this.drawShapeObject(shape);
+        });
+
+        // 3. Draw Selection / Handles (if any)
+        if (this.selectedShape) {
+            this.drawSelectionUI(this.selectedShape);
+        }
     }
 
     setTool(tool) {
@@ -673,9 +706,16 @@ class ImageEditor {
             this.isDrawing = true;
             this.ctx.beginPath();
             this.ctx.moveTo(x, y);
+
+            // Sync with baseCanvas
+            this.baseCtx.strokeStyle = this.brushColor;
+            this.baseCtx.lineWidth = this.brushSize;
+            this.baseCtx.lineCap = 'round';
+            this.baseCtx.beginPath();
+            this.baseCtx.moveTo(x, y);
         } else if (this.currentTool === 'crop') {
+            // ... crop logic (preserved) ...
             if (this.cropStart && this.cropEnd) {
-                // Check if clicking on handles or inside crop area
                 const handle = this.getHandleUnderCursor(x, y);
                 if (handle) {
                     this.cropAction = 'resize';
@@ -689,9 +729,8 @@ class ImageEditor {
                     this.initialCropStart = { ...this.cropStart };
                     this.initialCropEnd = { ...this.cropEnd };
                 } else {
-                    // Start new crop
                     this.cropStart = { x, y };
-                    this.cropEnd = { x, y }; // Initialize end point to start point
+                    this.cropEnd = { x, y };
                     this.cropAction = 'create';
                 }
             } else {
@@ -699,14 +738,65 @@ class ImageEditor {
                 this.cropAction = 'create';
             }
 
-            // Add window listeners if we started an action
             if (this.cropAction) {
                 window.addEventListener('mousemove', this.boundWindowMouseMove);
                 window.addEventListener('mouseup', this.boundWindowMouseUp);
             }
-        } else if (this.currentTool === 'shape' && this.shapeType !== 'polygon') {
-            this.shapeStart = { x, y };
-            this.isDrawing = true;
+        } else if (this.currentTool === 'shape') {
+            // 1. Check for Handle Hit (Resize)
+            if (this.selectedShape) {
+                const handle = this.getShapeHandle(this.selectedShape, x, y);
+                if (handle) {
+                    this.isResizingShape = true;
+                    this.activeHandle = handle;
+                    this.dragStart = { x, y };
+                    this.initialShapeState = JSON.parse(JSON.stringify(this.selectedShape));
+                    return;
+                }
+            }
+
+            // 2. Check for Shape Hit (Select/Move)
+            // Iterate in reverse to select top-most shape
+            let hitShape = null;
+            for (let i = this.shapes.length - 1; i >= 0; i--) {
+                if (this.isPointInShape(this.shapes[i], x, y)) {
+                    hitShape = this.shapes[i];
+                    break;
+                }
+            }
+
+            if (hitShape) {
+                this.selectedShape = hitShape;
+                this.isMovingShape = true;
+                this.dragStart = { x, y };
+                this.initialShapeState = JSON.parse(JSON.stringify(hitShape));
+                this.render();
+                return;
+            } else {
+                // Deselect if clicking empty space but NOT if drawing polygon
+                if (this.selectedShape && this.shapeType !== 'polygon') {
+                    this.selectedShape = null;
+                    this.render();
+                }
+            }
+
+            // 3. Start Drawing
+            if (this.shapeType !== 'polygon') {
+                this.isDrawing = true;
+                this.shapeStart = { x, y };
+                // Initialize new shape
+                this.currentDrawingShape = {
+                    type: this.shapeType,
+                    x: x, y: y,
+                    width: 0, height: 0,
+                    color: this.shapeColor,
+                    fill: this.shapeFill,
+                    lineWidth: this.lineWidth,
+                    arrowType: this.arrowType
+                };
+                this.shapes.push(this.currentDrawingShape);
+                this.selectedShape = this.currentDrawingShape; // Auto-select new shape
+            }
         }
     }
 
@@ -715,20 +805,24 @@ class ImageEditor {
 
         let { x, y } = this.getMousePos(e);
 
-        // Clamp coordinates to canvas bounds if cropping
-        if (this.currentTool === 'crop' && this.cropAction) {
-            x = Math.max(0, Math.min(x, this.canvas.width));
-            y = Math.max(0, Math.min(y, this.canvas.height));
-        }
-
-        if (this.isDrawing && this.currentTool === 'draw') {
+        if (this.currentTool === 'draw' && this.isDrawing) {
             this.ctx.strokeStyle = this.brushColor;
             this.ctx.lineWidth = this.brushSize;
             this.ctx.lineCap = 'round';
             this.ctx.lineTo(x, y);
             this.ctx.stroke();
+
+            // Sync with baseCanvas
+            this.baseCtx.lineTo(x, y);
+            this.baseCtx.stroke();
+
         } else if (this.currentTool === 'crop') {
-            // Update cursor style
+            // ... crop move logic ...
+            // Clamp coordinates to canvas bounds if cropping
+            if (this.cropAction) {
+                x = Math.max(0, Math.min(x, this.canvas.width));
+                y = Math.max(0, Math.min(y, this.canvas.height));
+            }
             const handle = this.getHandleUnderCursor(x, y);
             if (handle) {
                 this.canvas.style.cursor = `${handle}-resize`;
@@ -744,19 +838,15 @@ class ImageEditor {
             } else if (this.cropAction === 'move') {
                 const dx = x - this.dragStart.x;
                 const dy = y - this.dragStart.y;
-
                 const width = this.initialCropEnd.x - this.initialCropStart.x;
                 const height = this.initialCropEnd.y - this.initialCropStart.y;
-
                 let newX = this.initialCropStart.x + dx;
                 let newY = this.initialCropStart.y + dy;
-
                 // Boundary checks
                 if (newX < 0) newX = 0;
                 if (newY < 0) newY = 0;
                 if (newX + width > this.canvas.width) newX = this.canvas.width - width;
                 if (newY + height > this.canvas.height) newY = this.canvas.height - height;
-
                 this.cropStart = { x: newX, y: newY };
                 this.cropEnd = { x: newX + width, y: newY + height };
                 this.drawCropOverlay();
@@ -764,29 +854,69 @@ class ImageEditor {
                 this.handleResize(x, y);
                 this.drawCropOverlay();
             }
-            // If just hovering (no action), cursor is updated above
-        } else if (this.isDrawing && this.currentTool === 'shape' && this.shapeStart) {
-            this.drawShapePreview(x, y);
-        } else if (this.isDrawingPolygon && this.polygonPoints.length > 0) {
-            // Draw preview line for polygon
-            this.redrawCanvas();
-            this.drawPolygonPreview(x, y);
+
+        } else if (this.currentTool === 'shape') {
+            // Cursor Updates
+            if (this.selectedShape) {
+                const handle = this.getShapeHandle(this.selectedShape, x, y);
+                if (handle) {
+                    this.canvas.style.cursor = handle.cursor;
+                } else if (this.isPointInShape(this.selectedShape, x, y)) {
+                    this.canvas.style.cursor = 'move';
+                } else {
+                    this.canvas.style.cursor = 'default';
+                }
+            } else {
+                this.canvas.style.cursor = 'crosshair';
+            }
+
+            if (this.isDrawing && this.currentDrawingShape) {
+                // Update current drawing shape dimensions
+                this.currentDrawingShape.width = x - this.shapeStart.x;
+                this.currentDrawingShape.height = y - this.shapeStart.y;
+                this.render();
+            } else if (this.isMovingShape && this.selectedShape) {
+                const dx = x - this.dragStart.x;
+                const dy = y - this.dragStart.y;
+
+                // Calculate new position
+                if (this.selectedShape.type === 'polygon') {
+                    // Move all points
+                    this.selectedShape.points = this.initialShapeState.points.map(p => ({
+                        x: p.x + dx,
+                        y: p.y + dy
+                    }));
+                } else {
+                    this.selectedShape.x = this.initialShapeState.x + dx;
+                    this.selectedShape.y = this.initialShapeState.y + dy;
+                }
+                this.render();
+            } else if (this.isResizingShape && this.selectedShape) {
+                this.handleShapeResize(x, y);
+                this.render();
+            } else if (this.isDrawingPolygon && this.polygonPoints.length > 0) {
+                this.render();
+                this.drawPolygonPreview(x, y);
+            }
         }
     }
 
     handleMouseUp(e) {
-        if (this.isDrawing && this.currentTool === 'draw') {
+        if (this.currentTool === 'draw' && this.isDrawing) {
             this.isDrawing = false;
+            // Committing brush stroke to baseCanvas
+            // Re-draw the entire path or just compose?
+            // Since we cleared ctx in render, we missed the strokes.
+            // Problem: render() wipes ctx.
+            // Solution: We need to draw to baseCanvas AS WE DRAW.
+            // I'll update handleMouseMove for 'draw' to draw to BOTH ctx and baseCtx.
             this.saveState();
         } else if (this.isCropping && this.cropAction) {
+            // ... crop finalize ...
             this.cropAction = null;
             this.activeHandle = null;
-
-            // Remove window listeners
             window.removeEventListener('mousemove', this.boundWindowMouseMove);
             window.removeEventListener('mouseup', this.boundWindowMouseUp);
-
-            // Normalize coordinates (ensure start is top-left, end is bottom-right)
             if (this.cropStart && this.cropEnd) {
                 const x1 = Math.min(this.cropStart.x, this.cropEnd.x);
                 const y1 = Math.min(this.cropStart.y, this.cropEnd.y);
@@ -796,11 +926,29 @@ class ImageEditor {
                 this.cropEnd = { x: x2, y: y2 };
                 this.drawCropOverlay();
             }
-        } else if (this.isDrawing && this.currentTool === 'shape' && this.shapeType !== 'polygon') {
-            this.isDrawing = false;
-            const { x, y } = this.getMousePos(e);
-            this.drawShape(x, y);
-            this.saveState();
+        } else if (this.currentTool === 'shape') {
+            if (this.isDrawing) {
+                this.isDrawing = false;
+                // Normalize rectangle/circle dimensions (width/height can be negative)
+                // It's often better to normalize x,y to be top-left and w,h > 0
+                if (this.currentDrawingShape && (this.currentDrawingShape.type === 'rectangle' || this.currentDrawingShape.type === 'circle')) {
+                    if (this.currentDrawingShape.width < 0) {
+                        this.currentDrawingShape.x += this.currentDrawingShape.width;
+                        this.currentDrawingShape.width = Math.abs(this.currentDrawingShape.width);
+                    }
+                    if (this.currentDrawingShape.height < 0) {
+                        this.currentDrawingShape.y += this.currentDrawingShape.height;
+                        this.currentDrawingShape.height = Math.abs(this.currentDrawingShape.height);
+                    }
+                }
+
+                this.currentDrawingShape = null;
+                this.saveState();
+            }
+            this.isMovingShape = false;
+            this.isResizingShape = false;
+            this.activeHandle = null;
+            this.initialShapeState = null;
         }
     }
 
@@ -817,6 +965,12 @@ class ImageEditor {
             this.ctx.font = `${this.fontSize}px Inter, sans-serif`;
             this.ctx.fillStyle = this.textColor;
             this.ctx.fillText(text, x, y);
+
+            // Persist to baseCanvas
+            this.baseCtx.font = `${this.fontSize}px Inter, sans-serif`;
+            this.baseCtx.fillStyle = this.textColor;
+            this.baseCtx.fillText(text, x, y);
+
             this.saveState();
         } else if (this.currentTool === 'shape' && this.shapeType === 'polygon') {
             this.addPolygonPoint(x, y);
@@ -1018,51 +1172,166 @@ class ImageEditor {
         return null;
     }
 
-    handleResize(x, y) {
-        // Based on activeHandle, update cropStart or cropEnd
-        // This is complex because we need to respect the fixed anchor point depending on handle
+    // Shape Helpers
+    getShapeHandle(shape, x, y) {
+        // Reuse drawSelectionUI logic conceptually
+        // Handles are at corners/edges.
+        let sx, sy, sw, sh;
 
-        const currentRect = {
-            x: Math.min(this.initialCropStart.x, this.initialCropEnd.x),
-            y: Math.min(this.initialCropStart.y, this.initialCropEnd.y),
-            w: Math.abs(this.initialCropEnd.x - this.initialCropStart.x),
-            h: Math.abs(this.initialCropEnd.y - this.initialCropStart.y)
-        };
-
-        // Calculate new bounds
-        let newX = currentRect.x;
-        let newY = currentRect.y;
-        let newW = currentRect.w;
-        let newH = currentRect.h;
-
-        if (this.activeHandle.includes('w')) {
-            const diff = x - currentRect.x;
-            newX = x;
-            newW = currentRect.w - diff;
-        }
-        if (this.activeHandle.includes('e')) {
-            newW = x - currentRect.x;
-        }
-        if (this.activeHandle.includes('n')) {
-            const diff = y - currentRect.y;
-            newY = y;
-            newH = currentRect.h - diff;
-        }
-        if (this.activeHandle.includes('s')) {
-            newH = y - currentRect.y;
+        if (shape.type === 'polygon') {
+            const xs = shape.points.map(p => p.x);
+            const ys = shape.points.map(p => p.y);
+            sx = Math.min(...xs);
+            sy = Math.min(...ys);
+            sw = Math.max(...xs) - sx;
+            sh = Math.max(...ys) - sy;
+        } else if (shape.type === 'line' || shape.type === 'arrow') {
+            sx = Math.min(shape.x, shape.x + shape.width);
+            sy = Math.min(shape.y, shape.y + shape.height);
+            sw = Math.abs(shape.width);
+            sh = Math.abs(shape.height);
+        } else {
+            sx = shape.x;
+            sy = shape.y;
+            sw = shape.width;
+            sh = shape.height;
         }
 
-        // Apply constraints (min size, bounds)
-        if (newW < 10) newW = 10;
-        if (newH < 10) newH = 10;
+        const handleSize = 10;
+        const tolerance = handleSize;
 
-        // Update cropStart/End
-        this.cropStart = { x: newX, y: newY };
-        this.cropEnd = { x: newX + newW, y: newY + newH };
+        const handles = [
+            { x: sx - handleSize / 2, y: sy - handleSize / 2, cursor: 'nw-resize', name: 'nw' },
+            { x: sx + sw - handleSize / 2, y: sy - handleSize / 2, cursor: 'ne-resize', name: 'ne' },
+            { x: sx - handleSize / 2, y: sy + sh - handleSize / 2, cursor: 'sw-resize', name: 'sw' },
+            { x: sx + sw - handleSize / 2, y: sy + sh - handleSize / 2, cursor: 'se-resize', name: 'se' }
+        ];
+
+        for (const h of handles) {
+            if (x >= h.x && x <= h.x + handleSize && y >= h.y && y <= h.y + handleSize) {
+                return h;
+            }
+        }
+        return null;
+    }
+
+    isPointInShape(shape, x, y) {
+        if (shape.type === 'rectangle') {
+            return x >= shape.x && x <= shape.x + shape.width &&
+                y >= shape.y && y <= shape.y + shape.height;
+        } else if (shape.type === 'circle') {
+            const centerX = shape.x + shape.width / 2;
+            const centerY = shape.y + shape.height / 2;
+            const rx = Math.abs(shape.width / 2);
+            const ry = Math.abs(shape.height / 2);
+            // Ellipsoid equation: (x-cx)^2/rx^2 + (y-cy)^2/ry^2 <= 1
+            const val = Math.pow(x - centerX, 2) / Math.pow(rx, 2) + Math.pow(y - centerY, 2) / Math.pow(ry, 2);
+            return val <= 1;
+        } else if (shape.type === 'line' || shape.type === 'arrow') {
+            // Distance to line segment
+            const x1 = shape.x, y1 = shape.y;
+            const x2 = shape.x + shape.width, y2 = shape.y + shape.height;
+
+            const A = x - x1;
+            const B = y - y1;
+            const C = x2 - x1;
+            const D = y2 - y1;
+
+            const dot = A * C + B * D;
+            const len_sq = C * C + D * D;
+            let param = -1;
+            if (len_sq != 0) // in case of 0 length line
+                param = dot / len_sq;
+
+            let xx, yy;
+            if (param < 0) {
+                xx = x1; yy = y1;
+            }
+            else if (param > 1) {
+                xx = x2; yy = y2;
+            }
+            else {
+                xx = x1 + param * C;
+                yy = y1 + param * D;
+            }
+
+            const dx = x - xx;
+            const dy = y - yy;
+            return Math.sqrt(dx * dx + dy * dy) < 10; // Tolerance
+        } else if (shape.type === 'polygon') {
+            // Ray casting algo
+            let inside = false;
+            for (let i = 0, j = shape.points.length - 1; i < shape.points.length; j = i++) {
+                const xi = shape.points[i].x, yi = shape.points[i].y;
+                const xj = shape.points[j].x, yj = shape.points[j].y;
+
+                const intersect = ((yi > y) != (yj > y))
+                    && (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
+                if (intersect) inside = !inside;
+            }
+            return inside;
+        }
+        return false;
+    }
+
+    handleShapeResize(x, y) {
+        if (!this.selectedShape || !this.activeHandle) return;
+
+        const shape = this.selectedShape;
+        const initial = this.initialShapeState;
+
+        // This is tricky. 
+        // For rect/circle, we change x, y, width, height.
+        // For Line, we move start or end points?
+        // Line logic is simpler if we treat it as P1(x,y) and P2(x+w, y+h).
+
+        // Let's implement Box Resizing Logic for now (Rect/Circle).
+        // For Line/Arrow/Polygon it's harder.
+        // For Line/Arrow, treat handles as endpoints?
+        // My getShapeHandle puts handles at bounding box corners.
+        // For Lines, dragging a corner of bounding box is weird.
+        // Ideally Lines have handles at endpoints.
+
+        // Simplification: Standard Bounding Box resizing
+
+        // Calculate the opposite corner of the handle
+        // ... (complex logic omitted for brevity, using delta approach)
+
+        const dx = x - this.dragStart.x;
+        const dy = y - this.dragStart.y;
+
+        if (shape.type === 'line' || shape.type === 'arrow') {
+            // Scale from center or just stretch?
+            // Since we use x,y,w,h, stretching w/h works.
+            // But if I drag NW handle of a line pointing SE?
+            // It's getting complicated.
+            // Fallback: Just update width/height based on handle.
+        }
+
+        // NW: x changes, y changes, w changes (-dx), h changes (-dy)
+        if (this.activeHandle.name === 'nw') {
+            shape.x = initial.x + dx;
+            shape.y = initial.y + dy;
+            shape.width = initial.width - dx;
+            shape.height = initial.height - dy;
+        } else if (this.activeHandle.name === 'ne') {
+            shape.y = initial.y + dy;
+            shape.width = initial.width + dx;
+            shape.height = initial.height - dy;
+        } else if (this.activeHandle.name === 'sw') {
+            shape.x = initial.x + dx;
+            shape.width = initial.width - dx;
+            shape.height = initial.height + dy;
+        } else if (this.activeHandle.name === 'se') {
+            shape.width = initial.width + dx;
+            shape.height = initial.height + dy;
+        }
     }
 
     applyCrop() {
         if (!this.cropStart || !this.cropEnd) return;
+
+        this.burnShapes();
 
         // Clean canvas (remove overlay/grid) before capturing
         this.redrawCanvas();
@@ -1148,50 +1417,164 @@ class ImageEditor {
         }
     }
 
-    drawArrow(x1, y1, x2, y2) {
+    // Updated drawing method to accept context
+    drawShapeObject(shape, ctx = this.ctx) {
+        ctx.save(); // Save state to avoid polluting context
+        ctx.strokeStyle = shape.color;
+        ctx.fillStyle = shape.color;
+        ctx.lineWidth = shape.lineWidth;
+
+        if (shape.type === 'rectangle') {
+            if (shape.fill) {
+                ctx.fillRect(shape.x, shape.y, shape.width, shape.height);
+            } else {
+                ctx.strokeRect(shape.x, shape.y, shape.width, shape.height);
+            }
+        } else if (shape.type === 'circle') {
+            const radius = Math.sqrt(shape.width * shape.width + shape.height * shape.height) / 2;
+            const centerX = shape.x + shape.width / 2;
+            const centerY = shape.y + shape.height / 2;
+
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+            if (shape.fill) {
+                ctx.fill();
+            } else {
+                ctx.stroke();
+            }
+        } else if (shape.type === 'line') {
+            ctx.beginPath();
+            ctx.moveTo(shape.x, shape.y);
+            ctx.lineTo(shape.x + shape.width, shape.y + shape.height);
+            ctx.stroke();
+        } else if (shape.type === 'arrow') {
+            this.drawArrow(shape.x, shape.y, shape.x + shape.width, shape.y + shape.height, shape.arrowType, ctx);
+        } else if (shape.type === 'polygon') {
+            this.drawPolygonShape(shape, ctx);
+        }
+        ctx.restore();
+    }
+
+    drawSelectionUI(shape) {
+        let x, y, width, height;
+
+        if (shape.type === 'polygon') {
+            // Calculate bounds for polygon
+            const xs = shape.points.map(p => p.x);
+            const ys = shape.points.map(p => p.y);
+            x = Math.min(...xs);
+            y = Math.min(...ys);
+            width = Math.max(...xs) - x;
+            height = Math.max(...ys) - y;
+        } else if (shape.type === 'line' || shape.type === 'arrow') {
+            x = Math.min(shape.x, shape.x + shape.width);
+            y = Math.min(shape.y, shape.y + shape.height);
+            width = Math.abs(shape.width);
+            height = Math.abs(shape.height);
+        } else {
+            x = shape.x;
+            y = shape.y;
+            width = shape.width;
+            height = shape.height;
+        }
+
+        this.ctx.save();
+        this.ctx.strokeStyle = '#2196F3';
+        this.ctx.lineWidth = 1;
+        this.ctx.setLineDash([5, 5]);
+        this.ctx.strokeRect(x, y, width, height);
+        this.ctx.restore();
+
+        // Draw handles
+        const handleSize = 8;
+        this.ctx.fillStyle = '#fff';
+        this.ctx.strokeStyle = '#2196F3';
+        this.ctx.lineWidth = 1;
+
+        const handles = [
+            { x: x - handleSize / 2, y: y - handleSize / 2, cursor: 'nw-resize', name: 'nw' },
+            { x: x + width - handleSize / 2, y: y - handleSize / 2, cursor: 'ne-resize', name: 'ne' },
+            { x: x - handleSize / 2, y: y + height - handleSize / 2, cursor: 'sw-resize', name: 'sw' },
+            { x: x + width - handleSize / 2, y: y + height - handleSize / 2, cursor: 'se-resize', name: 'se' }
+        ];
+
+        handles.forEach(h => {
+            this.ctx.fillRect(h.x, h.y, handleSize, handleSize);
+            this.ctx.strokeRect(h.x, h.y, handleSize, handleSize);
+        });
+    }
+
+    drawPolygonShape(shape, ctx = this.ctx) {
+        if (!shape.points || shape.points.length < 2) return;
+        ctx.beginPath();
+        ctx.moveTo(shape.points[0].x, shape.points[0].y);
+        for (let i = 1; i < shape.points.length; i++) {
+            ctx.lineTo(shape.points[i].x, shape.points[i].y);
+        }
+        ctx.closePath();
+        if (shape.fill) {
+            ctx.fill();
+        } else {
+            ctx.stroke();
+        }
+    }
+
+    drawArrow(x1, y1, x2, y2, arrowType = 'single', ctx = this.ctx) {
         // Draw main line
-        this.ctx.beginPath();
-        this.ctx.moveTo(x1, y1);
-        this.ctx.lineTo(x2, y2);
-        this.ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
+        ctx.stroke();
 
         // Calculate arrow head
         const headLength = 20;
         const angle = Math.atan2(y2 - y1, x2 - x1);
 
         // Draw arrow head at end
-        this.ctx.beginPath();
-        this.ctx.moveTo(x2, y2);
-        this.ctx.lineTo(
+        ctx.beginPath();
+        ctx.moveTo(x2, y2);
+        ctx.lineTo(
             x2 - headLength * Math.cos(angle - Math.PI / 6),
             y2 - headLength * Math.sin(angle - Math.PI / 6)
         );
-        this.ctx.moveTo(x2, y2);
-        this.ctx.lineTo(
+        ctx.moveTo(x2, y2);
+        ctx.lineTo(
             x2 - headLength * Math.cos(angle + Math.PI / 6),
             y2 - headLength * Math.sin(angle + Math.PI / 6)
         );
-        this.ctx.stroke();
+        ctx.stroke();
 
         // Draw arrow head at start if double arrow
-        if (this.arrowType === 'double') {
-            this.ctx.beginPath();
-            this.ctx.moveTo(x1, y1);
-            this.ctx.lineTo(
+        if (arrowType === 'double') {
+            ctx.beginPath();
+            ctx.moveTo(x1, y1);
+            ctx.lineTo(
                 x1 + headLength * Math.cos(angle - Math.PI / 6),
                 y1 + headLength * Math.sin(angle - Math.PI / 6)
             );
-            this.ctx.moveTo(x1, y1);
-            this.ctx.lineTo(
+            ctx.moveTo(x1, y1);
+            ctx.lineTo(
                 x1 + headLength * Math.cos(angle + Math.PI / 6),
                 y1 + headLength * Math.sin(angle + Math.PI / 6)
             );
-            this.ctx.stroke();
+            ctx.stroke();
         }
+    }
+
+    burnShapes() {
+        // Draw all shapes to Base Canvas
+        this.shapes.forEach(shape => {
+            this.drawShapeObject(shape, this.baseCtx);
+        });
+        this.shapes = []; // Clear shapes list
+        this.selectedShape = null;
+        this.render(); // Re-render (base canvas updated, shapes gone)
     }
 
     applyFilters() {
         if (!this.currentImage) return;
+
+        this.burnShapes();
 
         this.redrawCanvas();
 
@@ -1237,6 +1620,8 @@ class ImageEditor {
 
     applyPresetFilter(preset) {
         if (!this.currentImage) return;
+
+        this.burnShapes();
 
         this.redrawCanvas();
 
@@ -1284,6 +1669,8 @@ class ImageEditor {
     rotateImage() {
         if (!this.currentImage) return;
 
+        this.burnShapes();
+
         const tempCanvas = document.createElement('canvas');
         tempCanvas.width = this.canvas.height;
         tempCanvas.height = this.canvas.width;
@@ -1304,6 +1691,8 @@ class ImageEditor {
 
     flipImage(direction) {
         if (!this.currentImage) return;
+
+        this.burnShapes();
 
         const tempCanvas = document.createElement('canvas');
         tempCanvas.width = this.canvas.width;
@@ -1328,6 +1717,8 @@ class ImageEditor {
 
     resizeImage() {
         if (!this.currentImage) return;
+
+        this.burnShapes();
 
         const newWidth = parseInt(document.getElementById('resizeWidth').value);
         const newHeight = parseInt(document.getElementById('resizeHeight').value);
@@ -1405,15 +1796,28 @@ class ImageEditor {
     }
 
     getCanvasState() {
-        return this.ctx.getImageData(0, 0, this.canvas.width, this.canvas.height);
+        return this.baseCtx.getImageData(0, 0, this.baseCanvas.width, this.baseCanvas.height);
     }
 
     redrawCanvas() {
         if (this.historyStep >= 0 && this.history[this.historyStep]) {
             const state = this.history[this.historyStep];
+
+            // Restore Base Canvas
+            this.baseCanvas.width = state.width;
+            this.baseCanvas.height = state.height;
+            this.baseCtx.putImageData(state.data, 0, 0);
+
+            // Restore Shapes
+            // Deep clone to avoid reference issues
+            this.shapes = JSON.parse(JSON.stringify(state.shapes || []));
+            this.selectedShape = null;
+
+            // Sync Display Canvas
             this.canvas.width = state.width;
             this.canvas.height = state.height;
-            this.ctx.putImageData(state.data, 0, 0);
+
+            this.render();
             this.updateResolutionDisplay();
         }
     }
@@ -1423,14 +1827,28 @@ class ImageEditor {
         this.history = this.history.slice(0, this.historyStep);
         this.history.push({
             data: this.getCanvasState(),
-            width: this.canvas.width,
-            height: this.canvas.height
+            shapes: JSON.parse(JSON.stringify(this.shapes)),
+            width: this.baseCanvas.width,
+            height: this.baseCanvas.height
         });
 
-        // Limit history to 50 steps
         if (this.history.length > 50) {
             this.history.shift();
             this.historyStep--;
+        }
+    }
+
+    undo() {
+        if (this.historyStep > 0) {
+            this.historyStep--;
+            this.redrawCanvas();
+        }
+    }
+
+    redo() {
+        if (this.historyStep < this.history.length - 1) {
+            this.historyStep++;
+            this.redrawCanvas();
         }
     }
 
@@ -1461,6 +1879,9 @@ class ImageEditor {
                 saturation: 100,
                 hue: 0
             };
+
+            this.shapes = []; // Clear shapes
+            this.selectedShape = null;
 
             // Reset filter controls
             document.getElementById('brightness').value = 0;
