@@ -45,39 +45,6 @@
 - 🎯 直觀的使用者介面
 - ⚡ 流暢的過渡動畫
 
-## 🚀 使用方法
-
-### 本地運行
-
-1. 克隆或下載此專案
-```bash
-git clone <你的 GitHub 倉庫 URL>
-cd imageEditWeb
-```
-
-2. 使用本地伺服器開啟（推薦）
-```bash
-# 使用 Python
-python -m http.server 8000
-
-# 或使用 Node.js http-server
-npx http-server ./
-```
-
-3. 在瀏覽器中開啟 `http://localhost:8000`
-
-### GitHub Pages 部署
-
-1. 將專案推送到 GitHub 倉庫
-
-2. 在 GitHub 倉庫設定中：
-   - 前往 Settings > Pages
-   - Source 選擇 `main` 分支
-   - Folder 選擇 `/root`
-   - 點擊 Save
-
-3. 幾分鐘後，你的網站將在 `https://<你的用戶名>.github.io/<倉庫名稱>/` 上線
-
 ## 📖 操作指南
 
 1. **上傳圖片**
