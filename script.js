@@ -1928,10 +1928,21 @@ class ImageEditor {
             return;
         }
 
+        // Clear selection UI before export
+        const wasSelected = this.selectedShape;
+        this.selectedShape = null;
+        this.render();
+
         const link = document.createElement('a');
         link.download = 'edited-image.png';
         link.href = this.canvas.toDataURL('image/png');
         link.click();
+
+        // Restore selection if there was one
+        this.selectedShape = wasSelected;
+        if (wasSelected) {
+            this.render();
+        }
     }
 }
 
