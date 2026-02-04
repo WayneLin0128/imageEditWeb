@@ -1356,7 +1356,7 @@ class ImageEditor {
     // Shape Helpers
     getShapeHandle(shape, x, y) {
         // Reuse drawSelectionUI logic conceptually
-        // Handles are at corners/edges.
+        // Handles are at corners/edges (8 handles like crop).
         let sx, sy, sw, sh;
 
         if (shape.type === 'polygon') {
@@ -1378,19 +1378,37 @@ class ImageEditor {
             sh = shape.height;
         }
 
-        const handleSize = 10;
+        const rect = this.canvas.getBoundingClientRect();
+        const scaleX = this.canvas.width / rect.width;
+        const handleSize = 10 * scaleX;
         const tolerance = handleSize;
 
-        const handles = [
-            { x: sx - handleSize / 2, y: sy - handleSize / 2, cursor: 'nw-resize', name: 'nw' },
-            { x: sx + sw - handleSize / 2, y: sy - handleSize / 2, cursor: 'ne-resize', name: 'ne' },
-            { x: sx - handleSize / 2, y: sy + sh - handleSize / 2, cursor: 'sw-resize', name: 'sw' },
-            { x: sx + sw - handleSize / 2, y: sy + sh - handleSize / 2, cursor: 'se-resize', name: 'se' }
-        ];
+        // 8 handles: 4 corners + 4 edges (same as crop)
+        const handles = {
+            'nw': { x: sx, y: sy },
+            'ne': { x: sx + sw, y: sy },
+            'sw': { x: sx, y: sy + sh },
+            'se': { x: sx + sw, y: sy + sh },
+            'n': { x: sx + sw / 2, y: sy },
+            's': { x: sx + sw / 2, y: sy + sh },
+            'w': { x: sx, y: sy + sh / 2 },
+            'e': { x: sx + sw, y: sy + sh / 2 }
+        };
 
-        for (const h of handles) {
-            if (x >= h.x && x <= h.x + handleSize && y >= h.y && y <= h.y + handleSize) {
-                return h;
+        const cursorMap = {
+            'nw': 'nw-resize',
+            'ne': 'ne-resize',
+            'sw': 'sw-resize',
+            'se': 'se-resize',
+            'n': 'n-resize',
+            's': 's-resize',
+            'w': 'w-resize',
+            'e': 'e-resize'
+        };
+
+        for (const [key, pos] of Object.entries(handles)) {
+            if (Math.abs(x - pos.x) <= tolerance && Math.abs(y - pos.y) <= tolerance) {
+                return { name: key, cursor: cursorMap[key] };
             }
         }
         return null;
@@ -1461,51 +1479,45 @@ class ImageEditor {
         const shape = this.selectedShape;
         const initial = this.initialShapeState;
 
-        // This is tricky. 
-        // For rect/circle, we change x, y, width, height.
-        // For Line, we move start or end points?
-        // Line logic is simpler if we treat it as P1(x,y) and P2(x+w, y+h).
-
-        // Let's implement Box Resizing Logic for now (Rect/Circle).
-        // For Line/Arrow/Polygon it's harder.
-        // For Line/Arrow, treat handles as endpoints?
-        // My getShapeHandle puts handles at bounding box corners.
-        // For Lines, dragging a corner of bounding box is weird.
-        // Ideally Lines have handles at endpoints.
-
-        // Simplification: Standard Bounding Box resizing
-
-        // Calculate the opposite corner of the handle
-        // ... (complex logic omitted for brevity, using delta approach)
-
         const dx = x - this.dragStart.x;
         const dy = y - this.dragStart.y;
 
-        if (shape.type === 'line' || shape.type === 'arrow') {
-            // Scale from center or just stretch?
-            // Since we use x,y,w,h, stretching w/h works.
-            // But if I drag NW handle of a line pointing SE?
-            // It's getting complicated.
-            // Fallback: Just update width/height based on handle.
-        }
-
-        // NW: x changes, y changes, w changes (-dx), h changes (-dy)
-        if (this.activeHandle.name === 'nw') {
-            shape.x = initial.x + dx;
-            shape.y = initial.y + dy;
-            shape.width = initial.width - dx;
-            shape.height = initial.height - dy;
-        } else if (this.activeHandle.name === 'ne') {
-            shape.y = initial.y + dy;
-            shape.width = initial.width + dx;
-            shape.height = initial.height - dy;
-        } else if (this.activeHandle.name === 'sw') {
-            shape.x = initial.x + dx;
-            shape.width = initial.width - dx;
-            shape.height = initial.height + dy;
-        } else if (this.activeHandle.name === 'se') {
-            shape.width = initial.width + dx;
-            shape.height = initial.height + dy;
+        // Handle resize for all 8 directions (same logic as crop)
+        switch (this.activeHandle.name) {
+            case 'nw': // Top-left corner
+                shape.x = initial.x + dx;
+                shape.y = initial.y + dy;
+                shape.width = initial.width - dx;
+                shape.height = initial.height - dy;
+                break;
+            case 'ne': // Top-right corner
+                shape.y = initial.y + dy;
+                shape.width = initial.width + dx;
+                shape.height = initial.height - dy;
+                break;
+            case 'sw': // Bottom-left corner
+                shape.x = initial.x + dx;
+                shape.width = initial.width - dx;
+                shape.height = initial.height + dy;
+                break;
+            case 'se': // Bottom-right corner
+                shape.width = initial.width + dx;
+                shape.height = initial.height + dy;
+                break;
+            case 'n': // Top edge
+                shape.y = initial.y + dy;
+                shape.height = initial.height - dy;
+                break;
+            case 's': // Bottom edge
+                shape.height = initial.height + dy;
+                break;
+            case 'w': // Left edge
+                shape.x = initial.x + dx;
+                shape.width = initial.width - dx;
+                break;
+            case 'e': // Right edge
+                shape.width = initial.width + dx;
+                break;
         }
     }
 
@@ -1669,25 +1681,37 @@ class ImageEditor {
         this.ctx.lineWidth = 1;
         this.ctx.setLineDash([5, 5]);
         this.ctx.strokeRect(x, y, width, height);
+        this.ctx.setLineDash([]);
         this.ctx.restore();
 
-        // Draw handles
-        const handleSize = 8;
+        // Draw handles (same as crop: 4 corners + 4 edges)
+        const rect = this.canvas.getBoundingClientRect();
+        const scaleX = this.canvas.width / rect.width;
+        const handleSize = 10 * scaleX;
+
         this.ctx.fillStyle = '#fff';
         this.ctx.strokeStyle = '#2196F3';
         this.ctx.lineWidth = 1;
 
-        const handles = [
-            { x: x - handleSize / 2, y: y - handleSize / 2, cursor: 'nw-resize', name: 'nw' },
-            { x: x + width - handleSize / 2, y: y - handleSize / 2, cursor: 'ne-resize', name: 'ne' },
-            { x: x - handleSize / 2, y: y + height - handleSize / 2, cursor: 'sw-resize', name: 'sw' },
-            { x: x + width - handleSize / 2, y: y + height - handleSize / 2, cursor: 'se-resize', name: 'se' }
-        ];
+        // Corner handles
+        this.ctx.fillRect(x - handleSize / 2, y - handleSize / 2, handleSize, handleSize); // NW
+        this.ctx.strokeRect(x - handleSize / 2, y - handleSize / 2, handleSize, handleSize);
+        this.ctx.fillRect(x + width - handleSize / 2, y - handleSize / 2, handleSize, handleSize); // NE
+        this.ctx.strokeRect(x + width - handleSize / 2, y - handleSize / 2, handleSize, handleSize);
+        this.ctx.fillRect(x - handleSize / 2, y + height - handleSize / 2, handleSize, handleSize); // SW
+        this.ctx.strokeRect(x - handleSize / 2, y + height - handleSize / 2, handleSize, handleSize);
+        this.ctx.fillRect(x + width - handleSize / 2, y + height - handleSize / 2, handleSize, handleSize); // SE
+        this.ctx.strokeRect(x + width - handleSize / 2, y + height - handleSize / 2, handleSize, handleSize);
 
-        handles.forEach(h => {
-            this.ctx.fillRect(h.x, h.y, handleSize, handleSize);
-            this.ctx.strokeRect(h.x, h.y, handleSize, handleSize);
-        });
+        // Edge handles (N, S, W, E)
+        this.ctx.fillRect(x + width / 2 - handleSize / 2, y - handleSize / 2, handleSize, handleSize); // N
+        this.ctx.strokeRect(x + width / 2 - handleSize / 2, y - handleSize / 2, handleSize, handleSize);
+        this.ctx.fillRect(x + width / 2 - handleSize / 2, y + height - handleSize / 2, handleSize, handleSize); // S
+        this.ctx.strokeRect(x + width / 2 - handleSize / 2, y + height - handleSize / 2, handleSize, handleSize);
+        this.ctx.fillRect(x - handleSize / 2, y + height / 2 - handleSize / 2, handleSize, handleSize); // W
+        this.ctx.strokeRect(x - handleSize / 2, y + height / 2 - handleSize / 2, handleSize, handleSize);
+        this.ctx.fillRect(x + width - handleSize / 2, y + height / 2 - handleSize / 2, handleSize, handleSize); // E
+        this.ctx.strokeRect(x + width - handleSize / 2, y + height / 2 - handleSize / 2, handleSize, handleSize);
     }
 
     drawPolygonShape(shape, ctx = this.ctx) {
