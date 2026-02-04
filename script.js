@@ -268,6 +268,15 @@ class ImageEditor {
         this.boundWindowMouseMove = this.handleMouseMove.bind(this);
         this.boundWindowMouseUp = this.handleMouseUp.bind(this);
 
+        // Bind window touch event listeners for mobile support
+        this.boundWindowTouchMove = this.handleTouchMove.bind(this);
+        this.boundWindowTouchEnd = this.handleTouchEnd.bind(this);
+
+        // Touch event state for tap detection
+        this.lastTapTime = 0;
+        this.tapTimeout = null;
+        this.touchStartPos = null;
+
         this.init();
     }
 
@@ -488,12 +497,17 @@ class ImageEditor {
             this.resizeImage();
         });
 
-        // Canvas events
+        // Canvas events - Mouse
         this.canvas.addEventListener('mousedown', (e) => this.handleMouseDown(e));
         this.canvas.addEventListener('mousemove', (e) => this.handleMouseMove(e));
         this.canvas.addEventListener('mouseup', (e) => this.handleMouseUp(e));
         this.canvas.addEventListener('click', (e) => this.handleCanvasClick(e));
         this.canvas.addEventListener('dblclick', (e) => this.handleCanvasDoubleClick(e));
+
+        // Canvas events - Touch (for mobile support)
+        this.canvas.addEventListener('touchstart', (e) => this.handleTouchStart(e), { passive: false });
+        this.canvas.addEventListener('touchmove', (e) => this.handleTouchMove(e), { passive: false });
+        this.canvas.addEventListener('touchend', (e) => this.handleTouchEnd(e));
 
         // Operation buttons
         document.getElementById('undoBtn').addEventListener('click', () => this.undo());
@@ -659,9 +673,23 @@ class ImageEditor {
         const rect = this.canvas.getBoundingClientRect();
         const scaleX = this.canvas.width / rect.width;
         const scaleY = this.canvas.height / rect.height;
+        
+        // Support both mouse and touch events
+        let clientX, clientY;
+        if (e.touches && e.touches.length > 0) {
+            clientX = e.touches[0].clientX;
+            clientY = e.touches[0].clientY;
+        } else if (e.changedTouches && e.changedTouches.length > 0) {
+            clientX = e.changedTouches[0].clientX;
+            clientY = e.changedTouches[0].clientY;
+        } else {
+            clientX = e.clientX;
+            clientY = e.clientY;
+        }
+        
         return {
-            x: (e.clientX - rect.left) * scaleX,
-            y: (e.clientY - rect.top) * scaleY
+            x: (clientX - rect.left) * scaleX,
+            y: (clientY - rect.top) * scaleY
         };
     }
 
@@ -741,6 +769,8 @@ class ImageEditor {
             if (this.cropAction) {
                 window.addEventListener('mousemove', this.boundWindowMouseMove);
                 window.addEventListener('mouseup', this.boundWindowMouseUp);
+                window.addEventListener('touchmove', this.boundWindowTouchMove, { passive: false });
+                window.addEventListener('touchend', this.boundWindowTouchEnd);
             }
         } else if (this.currentTool === 'shape') {
             // 1. Check for Handle Hit (Resize)
@@ -917,6 +947,8 @@ class ImageEditor {
             this.activeHandle = null;
             window.removeEventListener('mousemove', this.boundWindowMouseMove);
             window.removeEventListener('mouseup', this.boundWindowMouseUp);
+            window.removeEventListener('touchmove', this.boundWindowTouchMove);
+            window.removeEventListener('touchend', this.boundWindowTouchEnd);
             if (this.cropStart && this.cropEnd) {
                 const x1 = Math.min(this.cropStart.x, this.cropEnd.x);
                 const y1 = Math.min(this.cropStart.y, this.cropEnd.y);
@@ -981,6 +1013,100 @@ class ImageEditor {
         if (this.isDrawingPolygon) {
             this.finishPolygon();
         }
+    }
+
+    // Touch event handlers for mobile support
+    handleTouchStart(e) {
+        e.preventDefault(); // Prevent scrolling/zooming
+        
+        if (!this.currentImage) return;
+
+        const touch = e.touches[0];
+        const pos = this.getMousePos(e);
+        
+        // Store touch start position for tap detection
+        this.touchStartPos = { x: touch.clientX, y: touch.clientY };
+        this.touchStartTime = Date.now();
+
+        // Trigger mouse down handler
+        this.handleMouseDown(e);
+
+        // Add window-level touch listeners for dragging outside canvas (for crop)
+        if (this.isCropping && this.cropAction) {
+            window.addEventListener('touchmove', this.boundWindowTouchMove, { passive: false });
+            window.addEventListener('touchend', this.boundWindowTouchEnd);
+        }
+    }
+
+    handleTouchMove(e) {
+        e.preventDefault(); // Prevent scrolling while drawing/cropping
+        
+        if (!this.currentImage) return;
+
+        // Trigger mouse move handler
+        this.handleMouseMove(e);
+    }
+
+    handleTouchEnd(e) {
+        if (!this.currentImage) return;
+
+        const touchEndTime = Date.now();
+        const touchDuration = touchEndTime - (this.touchStartTime || 0);
+
+        // Get end position from changedTouches
+        let endPos = null;
+        if (e.changedTouches && e.changedTouches.length > 0) {
+            endPos = {
+                x: e.changedTouches[0].clientX,
+                y: e.changedTouches[0].clientY
+            };
+        }
+
+        // Calculate movement distance
+        let moveDistance = 0;
+        if (this.touchStartPos && endPos) {
+            moveDistance = Math.sqrt(
+                Math.pow(endPos.x - this.touchStartPos.x, 2) +
+                Math.pow(endPos.y - this.touchStartPos.y, 2)
+            );
+        }
+
+        // Trigger mouse up handler first
+        this.handleMouseUp(e);
+
+        // Remove window-level touch listeners
+        window.removeEventListener('touchmove', this.boundWindowTouchMove);
+        window.removeEventListener('touchend', this.boundWindowTouchEnd);
+
+        // Tap detection (short duration and minimal movement)
+        const TAP_THRESHOLD = 200; // ms
+        const MOVE_THRESHOLD = 10; // px
+
+        if (touchDuration < TAP_THRESHOLD && moveDistance < MOVE_THRESHOLD) {
+            const now = Date.now();
+            const DOUBLE_TAP_DELAY = 300; // ms
+
+            // Check for double tap
+            if (now - this.lastTapTime < DOUBLE_TAP_DELAY) {
+                // Double tap detected
+                clearTimeout(this.tapTimeout);
+                this.lastTapTime = 0;
+                this.handleCanvasDoubleClick(e);
+            } else {
+                // Potential single tap - wait to see if double tap follows
+                this.lastTapTime = now;
+                this.tapTimeout = setTimeout(() => {
+                    if (this.lastTapTime === now) {
+                        this.handleCanvasClick(e);
+                    }
+                    this.lastTapTime = 0;
+                }, DOUBLE_TAP_DELAY);
+            }
+        }
+
+        // Reset touch state
+        this.touchStartPos = null;
+        this.touchStartTime = null;
     }
 
     // Polygon drawing methods
@@ -1170,6 +1296,61 @@ class ImageEditor {
             }
         }
         return null;
+    }
+
+    // Handle crop box resize based on active handle
+    handleResize(x, y) {
+        if (!this.activeHandle || !this.initialCropStart || !this.initialCropEnd) return;
+
+        const minSize = 10; // Minimum crop box size
+
+        // Get initial normalized coordinates
+        let x1 = Math.min(this.initialCropStart.x, this.initialCropEnd.x);
+        let y1 = Math.min(this.initialCropStart.y, this.initialCropEnd.y);
+        let x2 = Math.max(this.initialCropStart.x, this.initialCropEnd.x);
+        let y2 = Math.max(this.initialCropStart.y, this.initialCropEnd.y);
+
+        // Update coordinates based on which handle is being dragged
+        switch (this.activeHandle) {
+            case 'nw': // Top-left corner
+                x1 = Math.min(x, x2 - minSize);
+                y1 = Math.min(y, y2 - minSize);
+                break;
+            case 'ne': // Top-right corner
+                x2 = Math.max(x, x1 + minSize);
+                y1 = Math.min(y, y2 - minSize);
+                break;
+            case 'sw': // Bottom-left corner
+                x1 = Math.min(x, x2 - minSize);
+                y2 = Math.max(y, y1 + minSize);
+                break;
+            case 'se': // Bottom-right corner
+                x2 = Math.max(x, x1 + minSize);
+                y2 = Math.max(y, y1 + minSize);
+                break;
+            case 'n': // Top edge
+                y1 = Math.min(y, y2 - minSize);
+                break;
+            case 's': // Bottom edge
+                y2 = Math.max(y, y1 + minSize);
+                break;
+            case 'w': // Left edge
+                x1 = Math.min(x, x2 - minSize);
+                break;
+            case 'e': // Right edge
+                x2 = Math.max(x, x1 + minSize);
+                break;
+        }
+
+        // Clamp to canvas boundaries
+        x1 = Math.max(0, x1);
+        y1 = Math.max(0, y1);
+        x2 = Math.min(this.canvas.width, x2);
+        y2 = Math.min(this.canvas.height, y2);
+
+        // Update crop coordinates
+        this.cropStart = { x: x1, y: y1 };
+        this.cropEnd = { x: x2, y: y2 };
     }
 
     // Shape Helpers
