@@ -324,20 +324,6 @@ body::before {
     margin-bottom: var(--spacing-lg) !important;
 }
 
-.upload-status {
-    min-height: 1.5rem;
-    margin-bottom: var(--spacing-sm);
-    font-size: 0.95rem;
-    color: var(--text-secondary);
-}
-
-.upload-status.info {
-    color: var(--primary-color);
-}
-
-.upload-status.error {
-    color: #ff8f8f;
-}
 /* Buttons */
 .btn {
     padding: var(--spacing-sm) var(--spacing-lg);
