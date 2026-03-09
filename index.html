@@ -4,8 +4,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="功能強大的線上圖片編輯器 - 支援裁切、濾鏡、繪圖、文字等多種編輯工具">
-    <title>圖片編輯器 - Image Editor</title>
+    <meta name="description" content="?�能強大?��?上�??�編輯器 - ?�援裁�??�濾?�、繪?�、�?字�?多種編輯工具">
+    <title>?��?編輯??- Image Editor</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -17,15 +17,15 @@
         <header class="header">
             <div class="header-content">
                 <h1 class="title" data-i18n="title">
-                    <span class="icon">🎨</span>
-                    圖片編輯器
+                    <span class="icon">?��</span>
+                    ?��?編輯??
                 </h1>
                 <button class="language-switcher" id="languageSwitcher" title="Switch Language">
-                    <span class="lang-icon">🌐</span>
+                    <span class="lang-icon">??</span>
                     <span class="lang-text" id="langText">EN</span>
                 </button>
             </div>
-            <!-- <p class="subtitle" data-i18n="subtitle">專業的線上圖片編輯工具</p> -->
+            <!-- <p class="subtitle" data-i18n="subtitle">專業?��?上�??�編輯工??/p> -->
         </header>
 
         <main class="main-content">
@@ -35,101 +35,102 @@
                 <canvas id="canvas"></canvas>
                 <div class="drag-overlay" id="dragOverlay">
                     <div class="drag-content">
-                        <span class="drag-icon">📂</span>
-                        <p data-i18n="dropImageHere">拖放圖片到這裡</p>
+                        <span class="drag-icon">??</span>
+                        <p data-i18n="dropImageHere">?�放?��??�這裡</p>
                     </div>
                 </div>
                 <div class="upload-prompt" id="uploadPrompt">
-                    <div class="upload-icon">📸</div>
-                    <h2 data-i18n="uploadToStart">上傳圖片開始編輯</h2>
-                    <p data-i18n="supportedFormats">支援 JPG、PNG、GIF 格式</p>
-                    <p class="drag-hint" data-i18n="dragDropHint">或拖放圖片到此處</p>
+                    <div class="upload-icon">?��</div>
+                    <h2 data-i18n="uploadToStart">上傳?��??��?編輯</h2>
+                    <p data-i18n="supportedFormats">�䴩 JPG�BPNG�BGIF�A���u��i�z�L���A���ഫ HEIC/HEIF</p>
+                    <p class="drag-hint" data-i18n="dragDropHint">?��??��??�到此�?</p>
                     <button class="btn btn-primary" onclick="document.getElementById('imageUpload').click()"
                         data-i18n="selectImage">
-                        選擇圖片
+                        ?��??��?
                     </button>
-                    <input type="file" id="imageUpload" accept="image/*" hidden>
+                    <p class="upload-status" id="uploadStatus" aria-live="polite"></p>
+                    <input type="file" id="imageUpload" accept="image/*,.heic,.heif" hidden>
                 </div>
             </div>
 
             <!-- Toolbar -->
             <div class="toolbar" id="toolbar">
                 <div class="toolbar-section">
-                    <h3 data-i18n="basicTools">基本工具</h3>
+                    <h3 data-i18n="basicTools">?�本工具</h3>
                     <div class="tool-group">
                         <button class="tool-btn" id="uploadBtn" data-tool="upload" data-i18n-title="uploadImage">
-                            <span class="tool-icon">📁</span>
+                            <span class="tool-icon">??</span>
                             <span class="tool-label" data-i18n="upload">上傳</span>
                         </button>
                         <button class="tool-btn" id="cropBtn" data-tool="crop" data-i18n-title="crop">
-                            <span class="tool-icon">✂️</span>
-                            <span class="tool-label" data-i18n="crop">裁切</span>
+                            <span class="tool-icon">?��?</span>
+                            <span class="tool-label" data-i18n="crop">裁�?</span>
                         </button>
                         <button class="tool-btn" id="rotateBtn" data-tool="rotate" data-i18n-title="rotate">
-                            <span class="tool-icon">🔄</span>
-                            <span class="tool-label" data-i18n="rotate">旋轉</span>
+                            <span class="tool-icon">??</span>
+                            <span class="tool-label" data-i18n="rotate">?��?</span>
                         </button>
                         <button class="tool-btn" id="flipBtn" data-tool="flip" data-i18n-title="flip">
-                            <span class="tool-icon">🔃</span>
-                            <span class="tool-label" data-i18n="flip">翻轉</span>
+                            <span class="tool-icon">??</span>
+                            <span class="tool-label" data-i18n="flip">翻�?</span>
                         </button>
                         <button class="tool-btn" id="resizeBtn" data-tool="resize" data-i18n-title="resize">
-                            <span class="tool-icon">📏</span>
-                            <span class="tool-label" data-i18n="resize">大小</span>
+                            <span class="tool-icon">??</span>
+                            <span class="tool-label" data-i18n="resize">大�?</span>
                         </button>
                     </div>
                 </div>
 
                 <div class="toolbar-section">
-                    <h3 data-i18n="filtersEffects">濾鏡與效果</h3>
+                    <h3 data-i18n="filtersEffects">濾鏡?��???/h3>
                     <div class="tool-group">
                         <button class="tool-btn" id="filterBtn" data-tool="filter" data-i18n-title="filterAdjust">
-                            <span class="tool-icon">🌈</span>
+                            <span class="tool-icon">??</span>
                             <span class="tool-label" data-i18n="filter">濾鏡</span>
                         </button>
                         <button class="tool-btn" id="presetBtn" data-tool="preset" data-i18n-title="presetFilters">
-                            <span class="tool-icon">✨</span>
-                            <span class="tool-label" data-i18n="preset">預設</span>
+                            <span class="tool-icon">??/span>
+                            <span class="tool-label" data-i18n="preset">?�設</span>
                         </button>
                     </div>
                 </div>
 
                 <div class="toolbar-section">
-                    <h3 data-i18n="drawingTools">繪圖工具</h3>
+                    <h3 data-i18n="drawingTools">繪�?工具</h3>
                     <div class="tool-group">
                         <button class="tool-btn" id="drawBtn" data-tool="draw" data-i18n-title="brush">
-                            <span class="tool-icon">✏️</span>
-                            <span class="tool-label" data-i18n="brush">畫筆</span>
+                            <span class="tool-icon">?��?</span>
+                            <span class="tool-label" data-i18n="brush">?��?</span>
                         </button>
                         <button class="tool-btn" id="textBtn" data-tool="text" data-i18n-title="text">
-                            <span class="tool-icon">📝</span>
-                            <span class="tool-label" data-i18n="text">文字</span>
+                            <span class="tool-icon">??</span>
+                            <span class="tool-label" data-i18n="text">?��?</span>
                         </button>
                         <button class="tool-btn" id="shapeBtn" data-tool="shape" data-i18n-title="shape">
-                            <span class="tool-icon">🔲</span>
-                            <span class="tool-label" data-i18n="shape">形狀</span>
+                            <span class="tool-icon">?��</span>
+                            <span class="tool-label" data-i18n="shape">形�?</span>
                         </button>
                     </div>
                 </div>
 
                 <div class="toolbar-section">
-                    <h3 data-i18n="operations">操作</h3>
+                    <h3 data-i18n="operations">?��?</h3>
                     <div class="tool-group">
                         <button class="tool-btn" id="undoBtn" data-i18n-title="undoShortcut">
-                            <span class="tool-icon">↩️</span>
-                            <span class="tool-label" data-i18n="undo">撤銷</span>
+                            <span class="tool-icon">?��?</span>
+                            <span class="tool-label" data-i18n="undo">?�銷</span>
                         </button>
                         <button class="tool-btn" id="redoBtn" data-i18n-title="redoShortcut">
-                            <span class="tool-icon">↪️</span>
-                            <span class="tool-label" data-i18n="redo">重做</span>
+                            <span class="tool-icon">?��?</span>
+                            <span class="tool-label" data-i18n="redo">?��?</span>
                         </button>
                         <button class="tool-btn" id="resetBtn" data-i18n-title="reset">
-                            <span class="tool-icon">🔄</span>
-                            <span class="tool-label" data-i18n="reset">重置</span>
+                            <span class="tool-icon">??</span>
+                            <span class="tool-label" data-i18n="reset">?�置</span>
                         </button>
                         <button class="tool-btn btn-download" id="downloadBtn" data-i18n-title="download">
-                            <span class="tool-icon">💾</span>
-                            <span class="tool-label" data-i18n="download">下載</span>
+                            <span class="tool-icon">?��</span>
+                            <span class="tool-label" data-i18n="download">下�?</span>
                         </button>
                     </div>
                 </div>
@@ -147,17 +148,17 @@
                     <span class="control-value" id="brightnessValue">0</span>
                 </div>
                 <div class="control-item">
-                    <label for="contrast" data-i18n="contrast">對比度</label>
+                    <label for="contrast" data-i18n="contrast">對�?�?/label>
                     <input type="range" id="contrast" min="-100" max="100" value="0" step="1">
                     <span class="control-value" id="contrastValue">0</span>
                 </div>
                 <div class="control-item">
-                    <label for="saturation" data-i18n="saturation">飽和度</label>
+                    <label for="saturation" data-i18n="saturation">飽�?�?/label>
                     <input type="range" id="saturation" min="0" max="200" value="100" step="1">
                     <span class="control-value" id="saturationValue">100</span>
                 </div>
                 <div class="control-item">
-                    <label for="hue" data-i18n="hueLabel">色相</label>
+                    <label for="hue" data-i18n="hueLabel">?�相</label>
                     <input type="range" id="hue" min="0" max="360" value="0" step="1">
                     <span class="control-value" id="hueValue">0</span>
                 </div>
@@ -165,20 +166,20 @@
 
             <!-- Preset Filters -->
             <div class="control-group" id="presetControls" style="display: none;">
-                <h3 data-i18n="presetFiltersTitle">預設濾鏡</h3>
+                <h3 data-i18n="presetFiltersTitle">?�設濾鏡</h3>
                 <div class="preset-buttons">
-                    <button class="btn btn-preset" data-preset="grayscale" data-i18n="grayscale">灰階</button>
+                    <button class="btn btn-preset" data-preset="grayscale" data-i18n="grayscale">?��?</button>
                     <button class="btn btn-preset" data-preset="vintage" data-i18n="vintage">復古</button>
-                    <button class="btn btn-preset" data-preset="vibrant" data-i18n="vibrant">鮮豔</button>
-                    <button class="btn btn-preset" data-preset="invert" data-i18n="invert">反轉</button>
+                    <button class="btn btn-preset" data-preset="vibrant" data-i18n="vibrant">鮮�?</button>
+                    <button class="btn btn-preset" data-preset="invert" data-i18n="invert">?��?</button>
                 </div>
             </div>
 
             <!-- Draw Controls -->
             <div class="control-group" id="drawControls" style="display: none;">
-                <h3 data-i18n="brushSettings">畫筆設定</h3>
+                <h3 data-i18n="brushSettings">?��?設�?</h3>
                 <div class="control-item">
-                    <label for="brushSize" data-i18n="brushSize">筆刷大小</label>
+                    <label for="brushSize" data-i18n="brushSize">筆刷大�?</label>
                     <input type="range" id="brushSize" min="1" max="50" value="5" step="1">
                     <span class="control-value" id="brushSizeValue">5</span>
                 </div>
@@ -190,14 +191,14 @@
 
             <!-- Text Controls -->
             <div class="control-group" id="textControls" style="display: none;">
-                <h3 data-i18n="textSettings">文字設定</h3>
+                <h3 data-i18n="textSettings">?��?設�?</h3>
                 <div class="control-item">
-                    <label for="textInput" data-i18n="textContent">文字內容</label>
-                    <input type="text" id="textInput" data-i18n-placeholder="enterText" placeholder="輸入文字..."
+                    <label for="textInput" data-i18n="textContent">?��??�容</label>
+                    <input type="text" id="textInput" data-i18n-placeholder="enterText" placeholder="輸入?��?..."
                         class="text-input">
                 </div>
                 <div class="control-item">
-                    <label for="fontSize" data-i18n="textSize">字體大小</label>
+                    <label for="fontSize" data-i18n="textSize">字�?大�?</label>
                     <input type="range" id="fontSize" min="10" max="100" value="30" step="1">
                     <span class="control-value" id="fontSizeValue">30</span>
                 </div>
@@ -205,32 +206,32 @@
                     <label for="textColor" data-i18n="color">顏色</label>
                     <input type="color" id="textColor" value="#ffffff">
                 </div>
-                <button class="btn btn-primary" id="addTextBtn" data-i18n="clickCanvasToAddText">在畫布上點擊添加文字</button>
+                <button class="btn btn-primary" id="addTextBtn" data-i18n="clickCanvasToAddText">?�畫布�?點�?添�??��?</button>
             </div>
 
             <!-- Shape Controls -->
             <div class="control-group" id="shapeControls" style="display: none;">
-                <h3 data-i18n="shapeSettings">形狀設定</h3>
+                <h3 data-i18n="shapeSettings">形�?設�?</h3>
                 <div class="control-item">
-                    <label for="shapeType" data-i18n="shapeType">形狀類型</label>
+                    <label for="shapeType" data-i18n="shapeType">形�?類�?</label>
                     <select id="shapeType" class="shape-select">
-                        <option value="rectangle" data-i18n="rectangle">矩形</option>
-                        <option value="circle" data-i18n="circle">圓形</option>
-                        <option value="line" data-i18n="line">線條</option>
+                        <option value="rectangle" data-i18n="rectangle">?�形</option>
+                        <option value="circle" data-i18n="circle">?�形</option>
+                        <option value="line" data-i18n="line">線�?</option>
                         <option value="arrow" data-i18n="arrow">箭頭</option>
-                        <option value="polygon" data-i18n="polygon">多邊形</option>
+                        <option value="polygon" data-i18n="polygon">多�?�?/option>
                     </select>
                 </div>
                 <div class="control-item" id="lineWidthControl">
-                    <label for="lineWidth" data-i18n="lineWidth">線條寬度</label>
+                    <label for="lineWidth" data-i18n="lineWidth">線�?寬度</label>
                     <input type="range" id="lineWidth" min="1" max="20" value="3" step="1">
                     <span class="control-value" id="lineWidthValue">3</span>
                 </div>
                 <div class="control-item" id="arrowTypeControl" style="display: none;">
-                    <label for="arrowType" data-i18n="arrowType">箭頭類型</label>
+                    <label for="arrowType" data-i18n="arrowType">箭頭類�?</label>
                     <select id="arrowType" class="shape-select">
-                        <option value="single" data-i18n="singleArrow">單向</option>
-                        <option value="double" data-i18n="doubleArrow">雙向</option>
+                        <option value="single" data-i18n="singleArrow">?��?</option>
+                        <option value="double" data-i18n="doubleArrow">?��?</option>
                     </select>
                 </div>
                 <div class="control-item">
@@ -238,17 +239,17 @@
                     <input type="color" id="shapeColor" value="#00ff00">
                 </div>
                 <div class="control-item" id="shapeFillControl">
-                    <label for="shapeFill" data-i18n="fill">填充</label>
+                    <label for="shapeFill" data-i18n="fill">填�?</label>
                     <input type="checkbox" id="shapeFill" checked>
                 </div>
-                <p class="info-text" id="shapeInstruction" data-i18n="shapeInstruction">在畫布上拖曳繪製</p>
+                <p class="info-text" id="shapeInstruction" data-i18n="shapeInstruction">?�畫布�??�曳繪製</p>
                 <p class="info-text" id="polygonInstruction" style="display: none;" data-i18n="polygonInstruction">
-                    點擊畫布添加頂點，雙擊或按 Enter 完成</p>
+                    點�??��?添�??��?，�??��???Enter 完�?</p>
             </div>
 
             <!-- Resize Controls -->
             <div class="control-group" id="resizeControls" style="display: none;">
-                <h3 data-i18n="resizeTitle">調整大小</h3>
+                <h3 data-i18n="resizeTitle">調整大�?</h3>
                 <div class="control-item">
                     <label for="resizeWidth" data-i18n="widthPx">寬度 (px)</label>
                     <input type="number" id="resizeWidth" min="1" value="800" class="text-input">
@@ -258,7 +259,7 @@
                     <input type="number" id="resizeHeight" min="1" value="600" class="text-input">
                 </div>
                 <div class="control-item">
-                    <label for="maintainAspect" data-i18n="maintainRatio">保持比例</label>
+                    <label for="maintainAspect" data-i18n="maintainRatio">保�?比�?</label>
                     <input type="checkbox" id="maintainAspect" checked>
                 </div>
                 <button class="btn btn-primary" id="applyResizeBtn" data-i18n="apply">套用</button>
@@ -266,25 +267,26 @@
 
             <!-- Flip Controls -->
             <div class="control-group" id="flipControls" style="display: none;">
-                <h3 data-i18n="flipOptions">翻轉選項</h3>
+                <h3 data-i18n="flipOptions">翻�??��?</h3>
                 <div class="preset-buttons">
-                    <button class="btn btn-preset" id="flipHorizontalBtn" data-i18n="flipHorizontal">水平翻轉</button>
-                    <button class="btn btn-preset" id="flipVerticalBtn" data-i18n="flipVertical">垂直翻轉</button>
+                    <button class="btn btn-preset" id="flipHorizontalBtn" data-i18n="flipHorizontal">水平翻�?</button>
+                    <button class="btn btn-preset" id="flipVerticalBtn" data-i18n="flipVertical">?�直翻�?</button>
                 </div>
             </div>
 
             <!-- Crop Info -->
             <div class="control-group" id="cropControls" style="display: none;">
-                <h3 data-i18n="crop">裁切</h3>
-                <p class="info-text" data-i18n="cropInstruction">在畫布上拖曳選擇裁切區域</p>
+                <h3 data-i18n="crop">裁�?</h3>
+                <p class="info-text" data-i18n="cropInstruction">?�畫布�??�曳?��?裁�??�??/p>
                 <div class="preset-buttons">
-                    <button class="btn btn-preset" id="cropConfirmBtn" data-i18n="confirm">確認</button>
-                    <button class="btn btn-preset" id="cropCancelBtn" data-i18n="cancel">取消</button>
+                    <button class="btn btn-preset" id="cropConfirmBtn" data-i18n="confirm">確�?</button>
+                    <button class="btn btn-preset" id="cropCancelBtn" data-i18n="cancel">?��?</button>
                 </div>
             </div>
         </div>
     </div>
 
+    <script>window.IMAGE_EDITOR_API_BASE_URL = window.IMAGE_EDITOR_API_BASE_URL || "http://localhost:5242";</script>
     <script src="script.js"></script>
 </body>
 

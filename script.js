@@ -18,6 +18,9 @@ class ImageEditor {
         this.cropEnd = null;
         this.isCropping = false;
         this.originalResizeCanvas = null;
+        this.apiBaseUrl = window.IMAGE_EDITOR_API_BASE_URL || '';
+        this.uploadStatus = document.getElementById('uploadStatus');
+        this.isUploading = false;
 
         // Layered Rendering State
         this.baseCanvas = document.createElement('canvas');
@@ -55,150 +58,116 @@ class ImageEditor {
         this.currentLanguage = localStorage.getItem('language') || 'zh';
         this.i18n = {
             zh: {
-                // Header
-                title: 'åœ–ç‰‡ç·¨è¼¯å™¨',
-                subtitle: 'å°ˆæ¥­çš„ç·šä¸Šåœ–ç‰‡ç·¨è¼¯å·¥å…·',
-
-                // Upload section
-                uploadToStart: 'ä¸Šå‚³åœ–ç‰‡é–‹å§‹ç·¨è¼¯',
-                supportedFormats: 'æ”¯æ´ JPGã€PNGã€GIF æ ¼å¼',
-                dragDropHint: 'æˆ–æ‹–æ”¾åœ–ç‰‡åˆ°æ­¤è™•',
-                selectImage: 'é¸æ“‡åœ–ç‰‡',
-                dropImageHere: 'æ‹–æ”¾åœ–ç‰‡åˆ°é€™è£¡',
-
-                // Toolbar sections
-                basicTools: 'åŸºæœ¬å·¥å…·',
-                filtersEffects: 'æ¿¾é¡èˆ‡æ•ˆæžœ',
-                drawingTools: 'ç¹ªåœ–å·¥å…·',
-                operations: 'æ“ä½œ',
-
-                // Basic tools
-                upload: 'ä¸Šå‚³',
-                crop: 'è£åˆ‡',
-                rotate: 'æ—‹è½‰',
-                flip: 'ç¿»è½‰',
-                resize: 'å¤§å°',
-
-                // Filters
-                filter: 'æ¿¾é¡',
-                preset: 'é è¨­',
-
-                // Drawing tools
-                brush: 'ç•«ç­†',
-                text: 'æ–‡å­—',
-                shape: 'å½¢ç‹€',
-
-                // Operations
-                undo: 'æ’¤éŠ·',
-                redo: 'é‡åš',
-                reset: 'é‡ç½®',
-                download: 'ä¸‹è¼‰',
-
-                // Shape settings
-                shapeSettings: 'å½¢ç‹€è¨­å®š',
-                shapeType: 'å½¢ç‹€é¡žåž‹',
-                rectangle: 'çŸ©å½¢',
-                circle: 'åœ“å½¢',
-                line: 'ç·šæ¢',
-                arrow: 'ç®­é ­',
-                polygon: 'å¤šé‚Šå½¢',
-                lineWidth: 'ç·šæ¢å¯¬åº¦',
-                arrowType: 'ç®­é ­é¡žåž‹',
-                singleArrow: 'å–®å‘',
-                doubleArrow: 'é›™å‘',
-                color: 'é¡è‰²',
-                fill: 'å¡«å……',
-                shapeInstruction: 'åœ¨ç•«å¸ƒä¸Šæ‹–æ›³ç¹ªè£½',
-                polygonInstruction: 'é»žæ“Šç•«å¸ƒæ·»åŠ é ‚é»žï¼Œé›™æ“Šæˆ–æŒ‰ Enter å®Œæˆ',
-
-                // Filter controls
-                filterAdjustTitle: 'æ¿¾é¡èª¿æ•´',
-                brightness: 'äº®åº¦',
-                contrast: 'å°æ¯”åº¦',
-                saturation: 'é£½å’Œåº¦',
-                hueLabel: 'è‰²ç›¸',
-
-                // Preset filters
-                presetFiltersTitle: 'é è¨­æ¿¾é¡',
-                grayscale: 'ç°éšŽ',
-                vintage: 'å¾©å¤',
-                vibrant: 'é®®è±”',
-                invert: 'åè½‰',
-
-                // Draw controls
-                brushSettings: 'ç•«ç­†è¨­å®š',
-                brushSize: 'ç­†åˆ·å¤§å°',
-
-                // Text controls
-                textSettings: 'æ–‡å­—è¨­å®š',
-                textContent: 'æ–‡å­—å…§å®¹',
-                enterText: 'è¼¸å…¥æ–‡å­—...',
-                textSize: 'å­—é«”å¤§å°',
-                clickCanvasToAddText: 'åœ¨ç•«å¸ƒä¸Šé»žæ“Šæ·»åŠ æ–‡å­—',
-
-                // Resize controls
-                resizeTitle: 'èª¿æ•´å¤§å°',
-                widthPx: 'å¯¬åº¦ (px)',
-                heightPx: 'é«˜åº¦ (px)',
-                maintainRatio: 'ä¿æŒæ¯”ä¾‹',
-                apply: 'å¥—ç”¨',
-
-                // Flip controls
-                flipOptions: 'ç¿»è½‰é¸é …',
-                flipHorizontal: 'æ°´å¹³ç¿»è½‰',
-                flipVertical: 'åž‚ç›´ç¿»è½‰',
-
-                // Crop controls
-                cropInstruction: 'åœ¨ç•«å¸ƒä¸Šæ‹–æ›³é¸æ“‡è£åˆ‡å€åŸŸï¼Œç„¶å¾ŒæŒ‰Enterç¢ºèªæˆ–Escapeå–æ¶ˆ',
-
-                // Tooltips
-                uploadImage: 'ä¸Šå‚³åœ–ç‰‡',
-                filterAdjust: 'æ¿¾é¡èª¿æ•´',
-                presetFilters: 'é è¨­æ¿¾é¡',
-                undoShortcut: 'æ’¤éŠ· (Ctrl+Z)',
-                redoShortcut: 'é‡åš (Ctrl+Y)'
+                title: '¹Ï¤ù½s¿è¾¹',
+                subtitle: '½u¤W¹Ï¤ù½s¿è¤u¨ã',
+                uploadToStart: '¤W¶Ç¹Ï¤ù¶}©l½s¿è',
+                supportedFormats: '¤ä´© JPG¡BPNG¡BGIF¡A¥»¤u¨ã¥i³z¹L¦øªA¾¹Âà´« HEIC/HEIF',
+                convertingHeic: '¥¿¦bÂà´« HEIC/HEIF¡A½Ðµy­Ô...',
+                loadingImage: '¥¿¦b¸ü¤J¹Ï¤ù...',
+                uploadFailed: '¹Ï¤ù¸ü¤J¥¢±Ñ¡A½Ðµy«á¦A¸Õ¡C',
+                invalidImageFile: '³o¤£¬O¥i¶×¤Jªº¹Ï¤ùÀÉ®×¡C',
+                apiNotConfigured: '¥Ø«e¥¼³]©w HEIC ÂàÀÉ API ¦ì§}¡C',
+                dragDropHint: '©Î©ì©ñ¹Ï¤ù¨ì¦¹³B',
+                selectImage: '¿ï¾Ü¹Ï¤ù',
+                dropImageHere: '©ì©ñ¹Ï¤ù¨ì³o¸Ì',
+                basicTools: '°ò¥»¤u¨ã',
+                filtersEffects: 'ÂoÃè»P®ÄªG',
+                drawingTools: 'Ã¸¹Ï¤u¨ã',
+                operations: '¾Þ§@',
+                upload: '¤W¶Ç',
+                crop: 'µô¤Á',
+                rotate: '±ÛÂà',
+                flip: 'Â½Âà',
+                resize: '½Õ¾ã¤Ø¤o',
+                filter: 'ÂoÃè',
+                preset: '¹w³]',
+                brush: 'µ§¨ê',
+                text: '¤å¦r',
+                shape: '§Îª¬',
+                undo: '´_­ì',
+                redo: '­«°µ',
+                reset: '­«³]',
+                download: '¤U¸ü',
+                shapeSettings: '§Îª¬³]©w',
+                shapeType: '§Îª¬Ãþ«¬',
+                rectangle: '¯x§Î',
+                circle: '¶ê§Î',
+                line: 'ª½½u',
+                arrow: '½bÀY',
+                polygon: '¦hÃä§Î',
+                lineWidth: '½u±ø¼e«×',
+                arrowType: '½bÀYÃþ«¬',
+                singleArrow: '³æ½bÀY',
+                doubleArrow: 'Âù½bÀY',
+                color: 'ÃC¦â',
+                fill: '¶ñº¡',
+                shapeInstruction: '¦bµe¥¬¤W©ì¦²¥HÃ¸»s',
+                polygonInstruction: 'ÂIÀ»µe¥¬·s¼W³»ÂI¡AÂùÀ»©Î«ö Enter §¹¦¨',
+                filterAdjustTitle: 'ÂoÃè½Õ¾ã',
+                brightness: '«G«×',
+                contrast: '¹ï¤ñ',
+                saturation: '¹¡©M«×',
+                hueLabel: '¦â¬Û',
+                presetFiltersTitle: '¹w³]ÂoÃè',
+                grayscale: '¦Ç¶¥',
+                vintage: '´_¥j',
+                vibrant: 'ÂAÆv',
+                invert: '¤Ï¬Û',
+                brushSettings: 'µ§¨ê³]©w',
+                brushSize: 'µ§¨ê¤j¤p',
+                textSettings: '¤å¦r³]©w',
+                textContent: '¤å¦r¤º®e',
+                enterText: '¿é¤J¤å¦r...',
+                textSize: '¦rÅé¤j¤p',
+                clickCanvasToAddText: 'ÂIÀ»µe¥¬¥H·s¼W¤å¦r',
+                resizeTitle: '½Õ¾ã¤Ø¤o',
+                widthPx: '¼e«× (px)',
+                heightPx: '°ª«× (px)',
+                maintainRatio: 'ºû«ù¤ñ¨Ò',
+                apply: '®M¥Î',
+                flipOptions: 'Â½Âà¿ï¶µ',
+                flipHorizontal: '¤ô¥­Â½Âà',
+                flipVertical: '««ª½Â½Âà',
+                cropInstruction: '¦bµe¥¬¤W©ì¦²¿ï¨úµô¤Á°Ï°ì¡A«ö Enter ½T»{©Î Escape ¨ú®ø',
+                uploadImage: '¤W¶Ç¹Ï¤ù',
+                filterAdjust: 'ÂoÃè½Õ¾ã',
+                presetFilters: '¹w³]ÂoÃè',
+                undoShortcut: '´_­ì (Ctrl+Z)',
+                redoShortcut: '­«°µ (Ctrl+Y)',
+                confirm: '½T»{',
+                cancel: '¨ú®ø'
             },
             en: {
-                // Header
                 title: 'Image Editor',
-                subtitle: 'Professional Online Image Editing Tool',
-
-                // Upload section
+                subtitle: 'Online image editing tool',
                 uploadToStart: 'Upload Image to Start',
-                supportedFormats: 'Supports JPG, PNG, GIF',
+                supportedFormats: 'Supports JPG, PNG, GIF with server-side HEIC/HEIF conversion',
+                convertingHeic: 'Converting HEIC/HEIF. Please wait...',
+                loadingImage: 'Loading image...',
+                uploadFailed: 'Image upload failed. Please try again.',
+                invalidImageFile: 'This file is not a supported image.',
+                apiNotConfigured: 'No HEIC conversion API base URL is configured.',
                 dragDropHint: 'Or drag and drop image here',
                 selectImage: 'Select Image',
                 dropImageHere: 'Drop Image Here',
-
-                // Toolbar sections
                 basicTools: 'Basic Tools',
                 filtersEffects: 'Filters & Effects',
                 drawingTools: 'Drawing Tools',
                 operations: 'Operations',
-
-                // Basic tools
                 upload: 'Upload',
                 crop: 'Crop',
                 rotate: 'Rotate',
                 flip: 'Flip',
                 resize: 'Resize',
-
-                // Filters
                 filter: 'Filter',
                 preset: 'Preset',
-
-                // Drawing tools
                 brush: 'Brush',
                 text: 'Text',
                 shape: 'Shape',
-
-                // Operations
                 undo: 'Undo',
                 redo: 'Redo',
                 reset: 'Reset',
                 download: 'Download',
-
-                // Shape settings
                 shapeSettings: 'Shape Settings',
                 shapeType: 'Shape Type',
                 rectangle: 'Rectangle',
@@ -214,56 +183,41 @@ class ImageEditor {
                 fill: 'Fill',
                 shapeInstruction: 'Drag on canvas to draw',
                 polygonInstruction: 'Click canvas to add points, double-click or press Enter to finish',
-
-                // Filter controls
                 filterAdjustTitle: 'Filter Adjustment',
                 brightness: 'Brightness',
                 contrast: 'Contrast',
                 saturation: 'Saturation',
                 hueLabel: 'Hue',
-
-                // Preset filters
                 presetFiltersTitle: 'Preset Filters',
                 grayscale: 'Grayscale',
                 vintage: 'Vintage',
                 vibrant: 'Vibrant',
                 invert: 'Invert',
-
-                // Draw controls
                 brushSettings: 'Brush Settings',
                 brushSize: 'Brush Size',
-
-                // Text controls
                 textSettings: 'Text Settings',
                 textContent: 'Text Content',
                 enterText: 'Enter text...',
                 textSize: 'Font Size',
                 clickCanvasToAddText: 'Click on canvas to add text',
-
-                // Resize controls
                 resizeTitle: 'Resize',
                 widthPx: 'Width (px)',
                 heightPx: 'Height (px)',
                 maintainRatio: 'Maintain Ratio',
                 apply: 'Apply',
-
-                // Flip controls
                 flipOptions: 'Flip Options',
                 flipHorizontal: 'Flip Horizontal',
                 flipVertical: 'Flip Vertical',
-
-                // Crop controls
                 cropInstruction: 'Drag on canvas to select crop area, then press Enter to confirm or Escape to cancel',
-
-                // Tooltips
                 uploadImage: 'Upload Image',
                 filterAdjust: 'Filter Adjustment',
                 presetFilters: 'Preset Filters',
                 undoShortcut: 'Undo (Ctrl+Z)',
-                redoShortcut: 'Redo (Ctrl+Y)'
+                redoShortcut: 'Redo (Ctrl+Y)',
+                confirm: 'Confirm',
+                cancel: 'Cancel'
             }
         };
-
         // Bind window event listeners for smooth dragging outside canvas
         this.boundWindowMouseMove = this.handleMouseMove.bind(this);
         this.boundWindowMouseUp = this.handleMouseUp.bind(this);
@@ -294,7 +248,7 @@ class ImageEditor {
         this.updateUILanguage();
 
         // Update language switcher text
-        document.getElementById('langText').textContent = lang === 'zh' ? 'EN' : 'ä¸­';
+        document.getElementById('langText').textContent = lang === 'zh' ? 'EN' : '¤¤¤å';
     }
 
     updateUILanguage() {
@@ -330,7 +284,6 @@ class ImageEditor {
             }
         });
     }
-
     // Drag and Drop support
     setupDragAndDrop() {
         ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
@@ -358,42 +311,176 @@ class ImageEditor {
 
             const files = e.dataTransfer.files;
             if (files.length > 0) {
-                const file = files[0];
-                if (file.type.startsWith('image/')) {
-                    this.loadImageFromFile(file);
-                }
+                this.processSelectedFile(files[0]);
             }
         });
     }
 
-    loadImageFromFile(file) {
+    async processSelectedFile(file) {
+        if (!file) return;
+
+        if (!this.isSupportedImageFile(file)) {
+            this.showUploadStatus(this.t('invalidImageFile'), 'error');
+            return;
+        }
+
+        this.setUploadingState(true, this.isHeicFile(file) ? this.t('convertingHeic') : this.t('loadingImage'));
+
+        try {
+            if (this.isHeicFile(file)) {
+                const blob = await this.convertHeicViaApi(file);
+                await this.loadImageFromBlob(blob);
+            } else {
+                await this.loadImageFromFile(file);
+            }
+
+            this.showUploadStatus('');
+        } catch (error) {
+            console.error(error);
+            this.showUploadStatus(error.message || this.t('uploadFailed'), 'error');
+        } finally {
+            this.setUploadingState(false);
+        }
+    }
+
+    isSupportedImageFile(file) {
+        return this.isHeicFile(file) || file.type.startsWith('image/');
+    }
+
+    isHeicFile(file) {
+        const name = (file.name || '').toLowerCase();
+        const type = (file.type || '').toLowerCase();
+        return name.endsWith('.heic')
+            || name.endsWith('.heif')
+            || type === 'image/heic'
+            || type === 'image/heif'
+            || type === 'image/heic-sequence'
+            || type === 'image/heif-sequence';
+    }
+
+    getApiBaseUrl() {
+        if (this.apiBaseUrl) {
+            return this.apiBaseUrl.replace(/\/$/, '');
+        }
+
+        if (window.location.protocol === 'file:') {
+            throw new Error(this.t('apiNotConfigured'));
+        }
+
+        return window.location.origin;
+    }
+
+    async convertHeicViaApi(file) {
+        const formData = new FormData();
+        formData.append('file', file);
+
+        const response = await fetch(`${this.getApiBaseUrl()}/api/images/convert-heic`, {
+            method: 'POST',
+            body: formData
+        });
+
+        if (!response.ok) {
+            let detail = this.t('uploadFailed');
+
+            try {
+                const problem = await response.json();
+                detail = problem.detail || problem.title || detail;
+            } catch (parseError) {
+                console.warn('Unable to parse HEIC conversion error.', parseError);
+            }
+
+            throw new Error(detail);
+        }
+
+        return await response.blob();
+    }
+
+    async loadImageFromFile(file) {
         const reader = new FileReader();
-        reader.onload = (event) => {
-            const img = new Image();
-            img.onload = () => {
-                this.originalImage = img;
-                this.currentImage = img;
-                this.shapes = []; // Clear shapes for new image
-                this.selectedShape = null;
-                this.displayImage(img);
 
-                // Reset resize session when loading new image
-                this.endResizeSession();
-                if (this.currentTool === 'resize') {
-                    this.startResizeSession();
+        return await new Promise((resolve, reject) => {
+            reader.onerror = () => reject(new Error(this.t('uploadFailed')));
+            reader.onload = async (event) => {
+                try {
+                    await this.loadImageFromSource(event.target.result);
+                    resolve();
+                } catch (error) {
+                    reject(error);
                 }
-
-                this.saveState();
-                document.getElementById('uploadPrompt').style.display = 'none';
-                this.canvas.classList.add('active');
-
-                // Update resize inputs
-                document.getElementById('resizeWidth').value = img.width;
-                document.getElementById('resizeHeight').value = img.height;
             };
-            img.src = event.target.result;
-        };
-        reader.readAsDataURL(file);
+
+            reader.readAsDataURL(file);
+        });
+    }
+
+    async loadImageFromBlob(blob) {
+        const objectUrl = URL.createObjectURL(blob);
+
+        try {
+            await this.loadImageFromSource(objectUrl);
+        } finally {
+            URL.revokeObjectURL(objectUrl);
+        }
+    }
+
+    async loadImageFromSource(source) {
+        const img = new Image();
+
+        await new Promise((resolve, reject) => {
+            img.onload = resolve;
+            img.onerror = () => reject(new Error(this.t('uploadFailed')));
+            img.src = source;
+        });
+
+        this.applyLoadedImage(img);
+    }
+
+    applyLoadedImage(img) {
+        this.originalImage = img;
+        this.currentImage = img;
+        this.shapes = [];
+        this.selectedShape = null;
+        this.displayImage(img);
+
+        this.endResizeSession();
+        if (this.currentTool === 'resize') {
+            this.startResizeSession();
+        }
+
+        this.saveState();
+        document.getElementById('uploadPrompt').style.display = 'none';
+        this.canvas.classList.add('active');
+        document.getElementById('resizeWidth').value = img.width;
+        document.getElementById('resizeHeight').value = img.height;
+    }
+
+    setUploadingState(isUploading, message = '') {
+        this.isUploading = isUploading;
+        const uploadInput = document.getElementById('imageUpload');
+        const uploadButton = document.getElementById('uploadBtn');
+
+        uploadInput.disabled = isUploading;
+        if (uploadButton) {
+            uploadButton.disabled = isUploading;
+        }
+
+        this.showUploadStatus(message, isUploading ? 'info' : '');
+    }
+
+    showUploadStatus(message, type = '') {
+        if (!this.uploadStatus) {
+            return;
+        }
+
+        this.uploadStatus.textContent = message;
+        this.uploadStatus.className = 'upload-status';
+        if (type) {
+            this.uploadStatus.classList.add(type);
+        }
+    }
+
+    t(key) {
+        return this.i18n[this.currentLanguage][key] || this.i18n.en[key] || key;
     }
 
     setupEventListeners() {
@@ -570,8 +657,9 @@ class ImageEditor {
 
     handleImageUpload(e) {
         const file = e.target.files[0];
+        e.target.value = '';
         if (!file) return;
-        this.loadImageFromFile(file);
+        this.processSelectedFile(file);
     }
 
     updateResolutionDisplay() {
@@ -667,6 +755,9 @@ class ImageEditor {
 
     endResizeSession() {
         this.originalResizeCanvas = null;
+        this.apiBaseUrl = window.IMAGE_EDITOR_API_BASE_URL || '';
+        this.uploadStatus = document.getElementById('uploadStatus');
+        this.isUploading = false;
     }
 
     getMousePos(e) {
@@ -990,7 +1081,7 @@ class ImageEditor {
         if (this.currentTool === 'text') {
             const text = document.getElementById('textInput').value;
             if (!text) {
-                alert('è«‹å…ˆè¼¸å…¥æ–‡å­—å…§å®¹');
+                alert('½Ð¥ý¿é¤J¤å¦r¤º®e');
                 return;
             }
 
@@ -1153,7 +1244,7 @@ class ImageEditor {
 
     finishPolygon() {
         if (this.polygonPoints.length < 3) {
-            alert('å¤šé‚Šå½¢è‡³å°‘éœ€è¦3å€‹é ‚é»ž');
+            alert('¦hÃä§Î¦Ü¤Ö»Ý­n 3 ­Ó³»ÂI');
             return;
         }
 
@@ -2099,7 +2190,7 @@ class ImageEditor {
     reset() {
         if (!this.originalImage) return;
 
-        if (confirm('ç¢ºå®šè¦é‡ç½®æ‰€æœ‰ç·¨è¼¯å—Žï¼Ÿ')) {
+        if (confirm('½T©w­n­«³]©Ò¦³½s¿è¶Ü¡H')) {
             this.displayImage(this.originalImage);
             this.history = [];
             this.historyStep = -1;
@@ -2129,7 +2220,7 @@ class ImageEditor {
 
     download() {
         if (!this.currentImage) {
-            alert('è«‹å…ˆä¸Šå‚³åœ–ç‰‡');
+            alert('½Ð¥ý¤W¶Ç¹Ï¤ù');
             return;
         }
 
@@ -2153,3 +2244,8 @@ class ImageEditor {
 
 // Initialize the app
 window.editor = new ImageEditor();
+
+
+
+
+

@@ -108,3 +108,17 @@ MIT License - 自由使用和修改
 ---
 
 Made with ❤️ using vanilla HTML, CSS, and JavaScript
+
+## HEIC support
+
+- JPG, PNG, and GIF continue to load locally in the browser.
+- HEIC and HEIF files are uploaded to the ASP.NET Core API and converted to JPEG before entering the existing canvas workflow.
+- Default API base URL in index.html is http://localhost:5242 and can be overridden with window.IMAGE_EDITOR_API_BASE_URL.
+
+### Run the HEIC conversion API
+
+```bash
+cd api
+dotnet restore
+dotnet run
+```
