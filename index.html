@@ -29,29 +29,6 @@
         </header>
 
         <main class="main-content">
-            <!-- Canvas Area -->
-            <div class="canvas-container" id="canvasContainer">
-                <div class="resolution-display" id="resolutionDisplay"></div>
-                <canvas id="canvas"></canvas>
-                <div class="drag-overlay" id="dragOverlay">
-                    <div class="drag-content">
-                        <span class="drag-icon">📂</span>
-                        <p data-i18n="dropImageHere">拖放圖片到這裡</p>
-                    </div>
-                </div>
-                <div class="upload-prompt" id="uploadPrompt">
-                    <div class="upload-icon">📸</div>
-                    <h2 data-i18n="uploadToStart">上傳圖片開始編輯</h2>
-                    <p data-i18n="supportedFormats">支援 JPG、PNG、GIF 格式</p>
-                    <p class="drag-hint" data-i18n="dragDropHint">或拖放圖片到此處</p>
-                    <button class="btn btn-primary" onclick="document.getElementById('imageUpload').click()"
-                        data-i18n="selectImage">
-                        選擇圖片
-                    </button>
-                    <input type="file" id="imageUpload" accept="image/*" hidden>
-                </div>
-            </div>
-
             <!-- Toolbar -->
             <div class="toolbar" id="toolbar">
                 <div class="toolbar-section">
@@ -134,10 +111,12 @@
                     </div>
                 </div>
             </div>
-        </main>
 
-        <!-- Control Panel (Bottom) -->
-        <div class="control-panel" id="controlPanel" style="display: none;">
+            <!-- Editor area: left panel + canvas -->
+            <div class="editor-area">
+
+            <!-- Control Panel (Left) -->
+            <div class="control-panel" id="controlPanel" style="display: none;">
             <!-- Filter Controls -->
             <div class="control-group" id="filterControls" style="display: none;">
                 <h3 data-i18n="filterAdjustTitle">濾鏡調整</h3>
@@ -162,7 +141,6 @@
                     <span class="control-value" id="hueValue">0</span>
                 </div>
             </div>
-
             <!-- Preset Filters -->
             <div class="control-group" id="presetControls" style="display: none;">
                 <h3 data-i18n="presetFiltersTitle">預設濾鏡</h3>
@@ -173,7 +151,6 @@
                     <button class="btn btn-preset" data-preset="invert" data-i18n="invert">反轉</button>
                 </div>
             </div>
-
             <!-- Draw Controls -->
             <div class="control-group" id="drawControls" style="display: none;">
                 <h3 data-i18n="brushSettings">畫筆設定</h3>
@@ -187,7 +164,6 @@
                     <input type="color" id="brushColor" value="#ff0000">
                 </div>
             </div>
-
             <!-- Text Controls -->
             <div class="control-group" id="textControls" style="display: none;">
                 <h3 data-i18n="textSettings">文字設定</h3>
@@ -205,9 +181,8 @@
                     <label for="textColor" data-i18n="color">顏色</label>
                     <input type="color" id="textColor" value="#ffffff">
                 </div>
-                <button class="btn btn-primary" id="addTextBtn" data-i18n="clickCanvasToAddText">在畫布上點擊添加文字</button>
+                <button class="btn btn-primary" id="addTextBtn" data-i18n="createTextBox">建立文字框</button>
             </div>
-
             <!-- Shape Controls -->
             <div class="control-group" id="shapeControls" style="display: none;">
                 <h3 data-i18n="shapeSettings">形狀設定</h3>
@@ -245,7 +220,6 @@
                 <p class="info-text" id="polygonInstruction" style="display: none;" data-i18n="polygonInstruction">
                     點擊畫布添加頂點，雙擊或按 Enter 完成</p>
             </div>
-
             <!-- Resize Controls -->
             <div class="control-group" id="resizeControls" style="display: none;">
                 <h3 data-i18n="resizeTitle">調整大小</h3>
@@ -263,7 +237,6 @@
                 </div>
                 <button class="btn btn-primary" id="applyResizeBtn" data-i18n="apply">套用</button>
             </div>
-
             <!-- Flip Controls -->
             <div class="control-group" id="flipControls" style="display: none;">
                 <h3 data-i18n="flipOptions">翻轉選項</h3>
@@ -272,7 +245,6 @@
                     <button class="btn btn-preset" id="flipVerticalBtn" data-i18n="flipVertical">垂直翻轉</button>
                 </div>
             </div>
-
             <!-- Crop Info -->
             <div class="control-group" id="cropControls" style="display: none;">
                 <h3 data-i18n="crop">裁切</h3>
@@ -282,7 +254,33 @@
                     <button class="btn btn-preset" id="cropCancelBtn" data-i18n="cancel">取消</button>
                 </div>
             </div>
-        </div>
+            </div><!-- /control-panel -->
+
+            <!-- Canvas Area -->
+            <div class="canvas-container" id="canvasContainer">
+                <div class="resolution-display" id="resolutionDisplay"></div>
+                <canvas id="canvas"></canvas>
+                <div class="drag-overlay" id="dragOverlay">
+                    <div class="drag-content">
+                        <span class="drag-icon">📂</span>
+                        <p data-i18n="dropImageHere">拖放圖片到這裡</p>
+                    </div>
+                </div>
+                <div class="upload-prompt" id="uploadPrompt">
+                    <div class="upload-icon">📸</div>
+                    <h2 data-i18n="uploadToStart">上傳圖片開始編輯</h2>
+                    <p data-i18n="supportedFormats">支援 JPG、PNG、GIF 格式</p>
+                    <p class="drag-hint" data-i18n="dragDropHint">或拖放圖片到此處</p>
+                    <button class="btn btn-primary" onclick="document.getElementById('imageUpload').click()"
+                        data-i18n="selectImage">
+                        選擇圖片
+                    </button>
+                    <input type="file" id="imageUpload" accept="image/*" hidden>
+                </div>
+            </div>
+
+            </div><!-- /editor-area -->
+        </main>
     </div>
 
     <script src="script.js"></script>

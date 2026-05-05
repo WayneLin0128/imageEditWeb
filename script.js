@@ -14,10 +14,9 @@ class ImageEditor {
         this.isDrawing = false;
         this.cropStart = null;
         this.cropEnd = null;
-        this.cropStart = null;
-        this.cropEnd = null;
         this.isCropping = false;
         this.originalResizeCanvas = null;
+        this.filterBaseState = null;
 
         // Layered Rendering State
         this.baseCanvas = document.createElement('canvas');
@@ -38,6 +37,13 @@ class ImageEditor {
         this.lineWidth = 3;
         this.arrowType = 'single';
         this.shapeStart = null;
+        this.textBoxStart = null;
+        this.textBoxEnd = null;
+        this.isCreatingTextBox = false;
+        this.textEditor = null;
+        this.editingTextShape = null;
+        this.editingOriginalText = '';
+        this.isEditingNewTextShape = false;
 
         // Polygon drawing
         this.polygonPoints = [];
@@ -134,7 +140,8 @@ class ImageEditor {
                 textContent: '文字內容',
                 enterText: '輸入文字...',
                 textSize: '字體大小',
-                clickCanvasToAddText: '在畫布上點擊添加文字',
+                createTextBox: '建立文字框',
+                clickCanvasToAddText: '拖曳建立文字框，點擊文字可編輯',
 
                 // Resize controls
                 resizeTitle: '調整大小',
@@ -238,7 +245,8 @@ class ImageEditor {
                 textContent: 'Text Content',
                 enterText: 'Enter text...',
                 textSize: 'Font Size',
-                clickCanvasToAddText: 'Click on canvas to add text',
+                createTextBox: 'Create Text Box',
+                clickCanvasToAddText: 'Drag to create a text box, click text to edit',
 
                 // Resize controls
                 resizeTitle: 'Resize',
@@ -281,6 +289,7 @@ class ImageEditor {
     }
 
     init() {
+        this.initTextEditor();
         this.setupEventListeners();
         this.setupDragAndDrop();
         this.setLanguage(this.currentLanguage);
@@ -413,7 +422,11 @@ class ImageEditor {
         document.querySelectorAll('.tool-btn[data-tool]').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 const tool = e.currentTarget.dataset.tool;
-                this.setTool(tool);
+                if (this.currentTool === tool) {
+                    this.setTool(null);
+                } else {
+                    this.setTool(tool);
+                }
             });
         });
 
@@ -452,6 +465,9 @@ class ImageEditor {
         document.getElementById('textColor').addEventListener('change', (e) => {
             this.textColor = e.target.value;
         });
+        document.getElementById('addTextBtn').addEventListener('click', () => {
+            this.createCenteredTextBox();
+        });
 
         // Shape controls
         document.getElementById('shapeType').addEventListener('change', (e) => {
@@ -482,14 +498,14 @@ class ImageEditor {
 
         // Resize controls
         document.getElementById('resizeWidth').addEventListener('input', (e) => {
-            if (document.getElementById('maintainAspect').checked && this.currentImage) {
-                const ratio = this.currentImage.height / this.currentImage.width;
+            if (document.getElementById('maintainAspect').checked && this.canvas.width > 0) {
+                const ratio = this.canvas.height / this.canvas.width;
                 document.getElementById('resizeHeight').value = Math.round(e.target.value * ratio);
             }
         });
         document.getElementById('resizeHeight').addEventListener('input', (e) => {
-            if (document.getElementById('maintainAspect').checked && this.currentImage) {
-                const ratio = this.currentImage.width / this.currentImage.height;
+            if (document.getElementById('maintainAspect').checked && this.canvas.height > 0) {
+                const ratio = this.canvas.width / this.canvas.height;
                 document.getElementById('resizeWidth').value = Math.round(e.target.value * ratio);
             }
         });
@@ -612,9 +628,15 @@ class ImageEditor {
         if (this.selectedShape) {
             this.drawSelectionUI(this.selectedShape);
         }
+
+        if (this.editingTextShape) {
+            this.positionTextEditor();
+        }
     }
 
     setTool(tool) {
+        const previousTool = this.currentTool;
+
         // Remove active active class from all tool buttons
         document.querySelectorAll('.tool-btn[data-tool]').forEach(btn => {
             btn.classList.remove('active');
@@ -634,11 +656,25 @@ class ImageEditor {
         }
 
         this.currentTool = tool;
+
+        // Capture an unfiltered snapshot once when entering filter mode.
+        if (tool === 'filter' && previousTool !== 'filter' && this.currentImage) {
+            this.filterBaseState = this.baseCtx.getImageData(0, 0, this.baseCanvas.width, this.baseCanvas.height);
+        } else if (tool !== 'filter') {
+            this.filterBaseState = null;
+        }
         this.updateControlVisibility();
 
         // Reset polygon drawing if switching away
         if (tool !== 'shape' || this.shapeType !== 'polygon') {
             this.cancelPolygon();
+        }
+
+        if (tool !== 'text') {
+            this.commitTextEditor(true);
+            this.isCreatingTextBox = false;
+            this.textBoxStart = null;
+            this.textBoxEnd = null;
         }
 
         // Handle crop tool
@@ -725,6 +761,43 @@ class ImageEditor {
         }
     }
 
+    initTextEditor() {
+        const editor = document.createElement('textarea');
+        editor.id = 'canvasTextEditor';
+        editor.setAttribute('aria-label', 'Canvas text editor');
+        Object.assign(editor.style, {
+            position: 'absolute',
+            display: 'none',
+            resize: 'none',
+            overflow: 'auto',
+            zIndex: '20',
+            border: '2px dashed #4facfe',
+            borderRadius: '8px',
+            outline: 'none',
+            padding: '8px',
+            background: 'rgba(26, 26, 46, 0.88)',
+            color: '#ffffff',
+            lineHeight: '1.35',
+            boxSizing: 'border-box'
+        });
+
+        editor.addEventListener('mousedown', (e) => e.stopPropagation());
+        editor.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                this.commitTextEditor(true);
+            } else if (e.key === 'Escape') {
+                e.preventDefault();
+                this.commitTextEditor(false);
+            }
+        });
+        editor.addEventListener('blur', () => this.commitTextEditor(true));
+        window.addEventListener('resize', () => this.positionTextEditor());
+
+        this.canvasContainer.appendChild(editor);
+        this.textEditor = editor;
+    }
+
     handleMouseDown(e) {
         if (!this.currentImage) return;
 
@@ -741,6 +814,19 @@ class ImageEditor {
             this.baseCtx.lineCap = 'round';
             this.baseCtx.beginPath();
             this.baseCtx.moveTo(x, y);
+        } else if (this.currentTool === 'text') {
+            const hitTextShape = this.getTextShapeAt(x, y);
+            if (hitTextShape) {
+                this.selectedShape = hitTextShape;
+                this.render();
+                this.openTextEditor(hitTextShape, false);
+                return;
+            }
+            this.commitTextEditor(true);
+            this.isCreatingTextBox = true;
+            this.textBoxStart = { x, y };
+            this.textBoxEnd = { x, y };
+            this.canvas.style.cursor = 'text';
         } else if (this.currentTool === 'crop') {
             // ... crop logic (preserved) ...
             if (this.cropStart && this.cropEnd) {
@@ -885,6 +971,12 @@ class ImageEditor {
                 this.drawCropOverlay();
             }
 
+        } else if (this.currentTool === 'text') {
+            this.canvas.style.cursor = 'text';
+            if (this.isCreatingTextBox && this.textBoxStart) {
+                this.textBoxEnd = { x, y };
+                this.drawTextBoxPreview();
+            }
         } else if (this.currentTool === 'shape') {
             // Cursor Updates
             if (this.selectedShape) {
@@ -958,6 +1050,16 @@ class ImageEditor {
                 this.cropEnd = { x: x2, y: y2 };
                 this.drawCropOverlay();
             }
+        } else if (this.currentTool === 'text') {
+            if (this.isCreatingTextBox && this.textBoxStart && this.textBoxEnd) {
+                const newShape = this.createTextShapeFromBox(this.textBoxStart, this.textBoxEnd);
+                this.isCreatingTextBox = false;
+                this.textBoxStart = null;
+                this.textBoxEnd = null;
+                this.selectedShape = newShape;
+                this.render();
+                this.openTextEditor(newShape, true);
+            }
         } else if (this.currentTool === 'shape') {
             if (this.isDrawing) {
                 this.isDrawing = false;
@@ -988,24 +1090,160 @@ class ImageEditor {
         const { x, y } = this.getMousePos(e);
 
         if (this.currentTool === 'text') {
-            const text = document.getElementById('textInput').value;
-            if (!text) {
-                alert('請先輸入文字內容');
-                return;
+            if (this.isCreatingTextBox || this.editingTextShape) return;
+            const hitTextShape = this.getTextShapeAt(x, y);
+            if (hitTextShape) {
+                this.openTextEditor(hitTextShape, false);
             }
-
-            this.ctx.font = `${this.fontSize}px Inter, sans-serif`;
-            this.ctx.fillStyle = this.textColor;
-            this.ctx.fillText(text, x, y);
-
-            // Persist to baseCanvas
-            this.baseCtx.font = `${this.fontSize}px Inter, sans-serif`;
-            this.baseCtx.fillStyle = this.textColor;
-            this.baseCtx.fillText(text, x, y);
-
-            this.saveState();
         } else if (this.currentTool === 'shape' && this.shapeType === 'polygon') {
             this.addPolygonPoint(x, y);
+        }
+    }
+
+    createCenteredTextBox() {
+        if (!this.currentImage) return;
+        this.commitTextEditor(true);
+        const width = Math.max(180, Math.round(this.canvas.width * 0.4));
+        const height = Math.max(72, Math.round(this.canvas.height * 0.16));
+        const shape = {
+            type: 'text',
+            x: Math.round((this.canvas.width - width) / 2),
+            y: Math.round((this.canvas.height - height) / 2),
+            width,
+            height,
+            text: '',
+            fontSize: this.fontSize,
+            color: this.textColor
+        };
+        this.shapes.push(shape);
+        this.selectedShape = shape;
+        this.render();
+        this.openTextEditor(shape, true);
+    }
+
+    createTextShapeFromBox(start, end) {
+        const minWidth = 120;
+        const minHeight = Math.max(42, Math.round(this.fontSize * 1.8));
+        const x1 = Math.min(start.x, end.x);
+        const y1 = Math.min(start.y, end.y);
+        let width = Math.abs(end.x - start.x);
+        let height = Math.abs(end.y - start.y);
+
+        if (width < 4 && height < 4) {
+            width = 220;
+            height = 80;
+        } else {
+            width = Math.max(minWidth, width);
+            height = Math.max(minHeight, height);
+        }
+
+        const shape = {
+            type: 'text',
+            x: Math.max(0, Math.min(x1, this.canvas.width - width)),
+            y: Math.max(0, Math.min(y1, this.canvas.height - height)),
+            width: Math.min(width, this.canvas.width),
+            height: Math.min(height, this.canvas.height),
+            text: '',
+            fontSize: this.fontSize,
+            color: this.textColor
+        };
+        this.shapes.push(shape);
+        return shape;
+    }
+
+    drawTextBoxPreview() {
+        if (!this.textBoxStart || !this.textBoxEnd) return;
+        this.render();
+        const x = Math.min(this.textBoxStart.x, this.textBoxEnd.x);
+        const y = Math.min(this.textBoxStart.y, this.textBoxEnd.y);
+        const width = Math.abs(this.textBoxEnd.x - this.textBoxStart.x);
+        const height = Math.abs(this.textBoxEnd.y - this.textBoxStart.y);
+
+        this.ctx.save();
+        this.ctx.strokeStyle = '#4facfe';
+        this.ctx.lineWidth = 2;
+        this.ctx.setLineDash([6, 4]);
+        this.ctx.strokeRect(x, y, Math.max(1, width), Math.max(1, height));
+        this.ctx.restore();
+    }
+
+    getTextShapeAt(x, y) {
+        for (let i = this.shapes.length - 1; i >= 0; i--) {
+            const shape = this.shapes[i];
+            if (shape.type === 'text' && this.isPointInShape(shape, x, y)) {
+                return shape;
+            }
+        }
+        return null;
+    }
+
+    openTextEditor(shape, isNew) {
+        if (!shape || shape.type !== 'text' || !this.textEditor) return;
+
+        this.commitTextEditor(true);
+        this.editingTextShape = shape;
+        this.editingOriginalText = shape.text || '';
+        this.isEditingNewTextShape = Boolean(isNew);
+        this.fontSize = shape.fontSize || this.fontSize;
+        this.textColor = shape.color || this.textColor;
+        document.getElementById('fontSize').value = this.fontSize;
+        document.getElementById('fontSizeValue').textContent = this.fontSize;
+        document.getElementById('textColor').value = this.textColor;
+
+        this.textEditor.value = shape.text || document.getElementById('textInput').value || '';
+        this.textEditor.style.display = 'block';
+        this.positionTextEditor();
+        this.textEditor.focus();
+        this.textEditor.select();
+    }
+
+    positionTextEditor() {
+        if (!this.editingTextShape || !this.textEditor) return;
+
+        const canvasRect = this.canvas.getBoundingClientRect();
+        const containerRect = this.canvasContainer.getBoundingClientRect();
+        const scaleX = canvasRect.width / this.canvas.width;
+        const scaleY = canvasRect.height / this.canvas.height;
+
+        this.textEditor.style.left = `${canvasRect.left - containerRect.left + this.editingTextShape.x * scaleX}px`;
+        this.textEditor.style.top = `${canvasRect.top - containerRect.top + this.editingTextShape.y * scaleY}px`;
+        this.textEditor.style.width = `${Math.max(80, this.editingTextShape.width * scaleX)}px`;
+        this.textEditor.style.height = `${Math.max(40, this.editingTextShape.height * scaleY)}px`;
+        this.textEditor.style.fontSize = `${Math.max(12, (this.editingTextShape.fontSize || this.fontSize) * scaleY)}px`;
+        this.textEditor.style.color = this.editingTextShape.color || this.textColor;
+    }
+
+    commitTextEditor(saveChanges) {
+        if (!this.editingTextShape || !this.textEditor) return;
+
+        const shape = this.editingTextShape;
+        const previousText = shape.text || '';
+        const nextText = saveChanges ? this.textEditor.value.trim() : this.editingOriginalText;
+        let removed = false;
+
+        if (nextText) {
+            shape.text = nextText;
+            shape.fontSize = this.fontSize;
+            shape.color = this.textColor;
+        } else if (this.isEditingNewTextShape) {
+            this.shapes = this.shapes.filter(item => item !== shape);
+            this.selectedShape = null;
+            removed = true;
+        } else {
+            shape.text = this.editingOriginalText;
+        }
+
+        const changed = removed || (shape.text || '') !== previousText;
+
+        this.textEditor.style.display = 'none';
+        this.textEditor.value = '';
+        this.editingTextShape = null;
+        this.editingOriginalText = '';
+        this.isEditingNewTextShape = false;
+
+        this.render();
+        if (saveChanges && changed) {
+            this.saveState();
         }
     }
 
@@ -1117,7 +1355,7 @@ class ImageEditor {
         }
 
         this.polygonPoints.push({ x, y });
-        this.redrawCanvas();
+        this.render();
         this.drawPolygonPreview();
     }
 
@@ -1157,27 +1395,19 @@ class ImageEditor {
             return;
         }
 
-        this.redrawCanvas();
-
-        this.ctx.strokeStyle = this.shapeColor;
-        this.ctx.fillStyle = this.shapeColor;
-        this.ctx.lineWidth = this.lineWidth;
-        this.ctx.beginPath();
-
-        this.ctx.moveTo(this.polygonPoints[0].x, this.polygonPoints[0].y);
-        for (let i = 1; i < this.polygonPoints.length; i++) {
-            this.ctx.lineTo(this.polygonPoints[i].x, this.polygonPoints[i].y);
-        }
-        this.ctx.closePath();
-
-        if (this.shapeFill) {
-            this.ctx.fill();
-        } else {
-            this.ctx.stroke();
-        }
+        const polygonShape = {
+            type: 'polygon',
+            points: this.polygonPoints.map(point => ({ ...point })),
+            color: this.shapeColor,
+            fill: this.shapeFill,
+            lineWidth: this.lineWidth
+        };
+        this.shapes.push(polygonShape);
+        this.selectedShape = polygonShape;
 
         this.polygonPoints = [];
         this.isDrawingPolygon = false;
+        this.render();
         this.saveState();
     }
 
@@ -1185,7 +1415,7 @@ class ImageEditor {
         if (this.isDrawingPolygon) {
             this.polygonPoints = [];
             this.isDrawingPolygon = false;
-            this.redrawCanvas();
+            this.render();
         }
     }
 
@@ -1416,13 +1646,17 @@ class ImageEditor {
 
     isPointInShape(shape, x, y) {
         if (shape.type === 'rectangle') {
-            return x >= shape.x && x <= shape.x + shape.width &&
-                y >= shape.y && y <= shape.y + shape.height;
+            const minX = Math.min(shape.x, shape.x + shape.width);
+            const maxX = Math.max(shape.x, shape.x + shape.width);
+            const minY = Math.min(shape.y, shape.y + shape.height);
+            const maxY = Math.max(shape.y, shape.y + shape.height);
+            return x >= minX && x <= maxX && y >= minY && y <= maxY;
         } else if (shape.type === 'circle') {
             const centerX = shape.x + shape.width / 2;
             const centerY = shape.y + shape.height / 2;
             const rx = Math.abs(shape.width / 2);
             const ry = Math.abs(shape.height / 2);
+            if (rx === 0 || ry === 0) return false;
             // Ellipsoid equation: (x-cx)^2/rx^2 + (y-cy)^2/ry^2 <= 1
             const val = Math.pow(x - centerX, 2) / Math.pow(rx, 2) + Math.pow(y - centerY, 2) / Math.pow(ry, 2);
             return val <= 1;
@@ -1457,6 +1691,12 @@ class ImageEditor {
             const dx = x - xx;
             const dy = y - yy;
             return Math.sqrt(dx * dx + dy * dy) < 10; // Tolerance
+        } else if (shape.type === 'text') {
+            const minX = Math.min(shape.x, shape.x + shape.width);
+            const maxX = Math.max(shape.x, shape.x + shape.width);
+            const minY = Math.min(shape.y, shape.y + shape.height);
+            const maxY = Math.max(shape.y, shape.y + shape.height);
+            return x >= minX && x <= maxX && y >= minY && y <= maxY;
         } else if (shape.type === 'polygon') {
             // Ray casting algo
             let inside = false;
@@ -1478,6 +1718,11 @@ class ImageEditor {
 
         const shape = this.selectedShape;
         const initial = this.initialShapeState;
+
+        if (shape.type === 'polygon') {
+            this.handlePolygonResize(x, y);
+            return;
+        }
 
         const dx = x - this.dragStart.x;
         const dy = y - this.dragStart.y;
@@ -1521,6 +1766,73 @@ class ImageEditor {
         }
     }
 
+    handlePolygonResize(x, y) {
+        const shape = this.selectedShape;
+        const initial = this.initialShapeState;
+        if (!shape || !initial || !initial.points || !this.activeHandle) return;
+
+        const xs = initial.points.map(p => p.x);
+        const ys = initial.points.map(p => p.y);
+
+        let x1 = Math.min(...xs);
+        let y1 = Math.min(...ys);
+        let x2 = Math.max(...xs);
+        let y2 = Math.max(...ys);
+
+        const initialX1 = x1;
+        const initialY1 = y1;
+        const initialWidth = Math.max(1, x2 - x1);
+        const initialHeight = Math.max(1, y2 - y1);
+        const minSize = 10;
+
+        switch (this.activeHandle.name) {
+            case 'nw':
+                x1 = Math.min(x, x2 - minSize);
+                y1 = Math.min(y, y2 - minSize);
+                break;
+            case 'ne':
+                x2 = Math.max(x, x1 + minSize);
+                y1 = Math.min(y, y2 - minSize);
+                break;
+            case 'sw':
+                x1 = Math.min(x, x2 - minSize);
+                y2 = Math.max(y, y1 + minSize);
+                break;
+            case 'se':
+                x2 = Math.max(x, x1 + minSize);
+                y2 = Math.max(y, y1 + minSize);
+                break;
+            case 'n':
+                y1 = Math.min(y, y2 - minSize);
+                break;
+            case 's':
+                y2 = Math.max(y, y1 + minSize);
+                break;
+            case 'w':
+                x1 = Math.min(x, x2 - minSize);
+                break;
+            case 'e':
+                x2 = Math.max(x, x1 + minSize);
+                break;
+        }
+
+        // Clamp bounding box within canvas boundaries
+        x1 = Math.max(0, x1);
+        y1 = Math.max(0, y1);
+        x2 = Math.min(this.canvas.width, x2);
+        y2 = Math.min(this.canvas.height, y2);
+
+        const newWidth = Math.max(1, x2 - x1);
+        const newHeight = Math.max(1, y2 - y1);
+        const scaleX = newWidth / initialWidth;
+        const scaleY = newHeight / initialHeight;
+
+        shape.points = initial.points.map(point => ({
+            x: x1 + (point.x - initialX1) * scaleX,
+            y: y1 + (point.y - initialY1) * scaleY
+        }));
+    }
+
     applyCrop() {
         if (!this.cropStart || !this.cropEnd) return;
 
@@ -1528,6 +1840,7 @@ class ImageEditor {
 
         const width = Math.abs(this.cropEnd.x - this.cropStart.x);
         const height = Math.abs(this.cropEnd.y - this.cropStart.y);
+        if (width < 1 || height < 1) return;
         const startX = Math.min(this.cropStart.x, this.cropEnd.x);
         const startY = Math.min(this.cropStart.y, this.cropEnd.y);
 
@@ -1649,8 +1962,66 @@ class ImageEditor {
             this.drawArrow(shape.x, shape.y, shape.x + shape.width, shape.y + shape.height, shape.arrowType, ctx);
         } else if (shape.type === 'polygon') {
             this.drawPolygonShape(shape, ctx);
+        } else if (shape.type === 'text') {
+            this.drawTextShape(shape, ctx);
         }
         ctx.restore();
+    }
+
+    drawTextShape(shape, ctx = this.ctx) {
+        const boxX = Math.min(shape.x, shape.x + shape.width);
+        const boxY = Math.min(shape.y, shape.y + shape.height);
+        const boxW = Math.abs(shape.width);
+        const boxH = Math.abs(shape.height);
+        if (boxW < 2 || boxH < 2) return;
+
+        const fontSize = shape.fontSize || this.fontSize;
+        const lineHeight = Math.round(fontSize * 1.3);
+        const text = shape.text || '';
+
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(boxX, boxY, boxW, boxH);
+        ctx.clip();
+        ctx.font = `${fontSize}px Inter, sans-serif`;
+        ctx.fillStyle = shape.color || this.textColor;
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'top';
+
+        const lines = this.wrapTextLines(ctx, text, Math.max(12, boxW - 8));
+        let y = boxY + 4;
+        for (const line of lines) {
+            if (y + lineHeight > boxY + boxH) break;
+            ctx.fillText(line, boxX + 4, y);
+            y += lineHeight;
+        }
+        ctx.restore();
+    }
+
+    wrapTextLines(ctx, text, maxWidth) {
+        if (!text) return [''];
+        const lines = [];
+        const paragraphs = text.split('\n');
+
+        for (const paragraph of paragraphs) {
+            if (!paragraph) {
+                lines.push('');
+                continue;
+            }
+            let current = '';
+            for (const ch of paragraph) {
+                const next = current + ch;
+                if (ctx.measureText(next).width > maxWidth && current) {
+                    lines.push(current);
+                    current = ch;
+                } else {
+                    current = next;
+                }
+            }
+            lines.push(current);
+        }
+
+        return lines.length > 0 ? lines : [''];
     }
 
     drawSelectionUI(shape) {
@@ -1785,10 +2156,14 @@ class ImageEditor {
         if (!this.currentImage) return;
 
         this.burnShapes();
+        if (!this.filterBaseState ||
+            this.filterBaseState.width !== this.baseCanvas.width ||
+            this.filterBaseState.height !== this.baseCanvas.height) {
+            this.filterBaseState = this.baseCtx.getImageData(0, 0, this.baseCanvas.width, this.baseCanvas.height);
+        }
 
-        this.redrawCanvas();
-
-        const imageData = this.ctx.getImageData(0, 0, this.canvas.width, this.canvas.height);
+        const imageData = this.baseCtx.createImageData(this.filterBaseState.width, this.filterBaseState.height);
+        imageData.data.set(this.filterBaseState.data);
         const data = imageData.data;
 
         for (let i = 0; i < data.length; i += 4) {
@@ -1825,17 +2200,17 @@ class ImageEditor {
             data[i + 2] = Math.max(0, Math.min(255, rgb[2]));
         }
 
-        this.ctx.putImageData(imageData, 0, 0);
+        this.baseCtx.putImageData(imageData, 0, 0);
+        this.render();
     }
 
     applyPresetFilter(preset) {
         if (!this.currentImage) return;
 
         this.burnShapes();
+        this.filterBaseState = null;
 
-        this.redrawCanvas();
-
-        const imageData = this.ctx.getImageData(0, 0, this.canvas.width, this.canvas.height);
+        const imageData = this.baseCtx.getImageData(0, 0, this.baseCanvas.width, this.baseCanvas.height);
         const data = imageData.data;
 
         for (let i = 0; i < data.length; i += 4) {
@@ -1872,7 +2247,8 @@ class ImageEditor {
             }
         }
 
-        this.ctx.putImageData(imageData, 0, 0);
+        this.baseCtx.putImageData(imageData, 0, 0);
+        this.render();
         this.saveState();
     }
 
@@ -2032,6 +2408,7 @@ class ImageEditor {
     redrawCanvas() {
         if (this.historyStep >= 0 && this.history[this.historyStep]) {
             const state = this.history[this.historyStep];
+            this.filterBaseState = null;
 
             // Restore Base Canvas
             this.baseCanvas.width = state.width;
@@ -2053,6 +2430,7 @@ class ImageEditor {
     }
 
     saveState() {
+        this.filterBaseState = null;
         this.historyStep++;
         this.history = this.history.slice(0, this.historyStep);
         this.history.push({
@@ -2065,20 +2443,6 @@ class ImageEditor {
         if (this.history.length > 50) {
             this.history.shift();
             this.historyStep--;
-        }
-    }
-
-    undo() {
-        if (this.historyStep > 0) {
-            this.historyStep--;
-            this.redrawCanvas();
-        }
-    }
-
-    redo() {
-        if (this.historyStep < this.history.length - 1) {
-            this.historyStep++;
-            this.redrawCanvas();
         }
     }
 
